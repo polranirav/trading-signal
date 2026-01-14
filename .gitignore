@@ -1,0 +1,89 @@
+# Virtual Environment
+venv/
+ENV/
+env/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.cursor/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Environment Variables
+.env
+.env.local
+.env.*.local
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+logs/
+
+# Cache
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+.ruff_cache/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data
+data/raw/
+data/processed/
+*.csv
+*.parquet
+!tests/fixtures/*.csv
+
+# Models
+models/*.pt
+models/*.pkl
+models/*.joblib
+!models/.gitkeep
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Terraform
+*.tfstate
+*.tfstate.backup
+.terraform/
+
+# Secrets
+secrets/
+*.pem
+*.key
+
+# Claude/AI
+.claude/
+claude-agentic-toolkit/
+
+# Research docs (keep in Project Reseach)
+!Project Reseach/
+
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+dist/
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local

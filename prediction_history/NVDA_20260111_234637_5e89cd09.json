@@ -1,0 +1,92 @@
+{
+  "id": "5e89cd09",
+  "symbol": "NVDA",
+  "timeframe": "1D",
+  "created_at": "2026-01-11T23:46:37.323804",
+  "predictions": [
+    {
+      "period": 1,
+      "label": "Day 1",
+      "direction": "DOWN",
+      "confidence": 55.1
+    },
+    {
+      "period": 2,
+      "label": "Day 2",
+      "direction": "DOWN",
+      "confidence": 59.9
+    },
+    {
+      "period": 3,
+      "label": "Day 3",
+      "direction": "DOWN",
+      "confidence": 56.3
+    },
+    {
+      "period": 4,
+      "label": "Day 4",
+      "direction": "DOWN",
+      "confidence": 52.4
+    },
+    {
+      "period": 5,
+      "label": "Day 5",
+      "direction": "DOWN",
+      "confidence": 50
+    }
+  ],
+  "ghost_candles": [
+    {
+      "time": "2026-01-10T05:00:00",
+      "open": 184.86,
+      "high": 185.01,
+      "low": 183.56,
+      "close": 183.89,
+      "direction": "DOWN",
+      "confidence": 55.1,
+      "opacity": 0.4
+    },
+    {
+      "time": "2026-01-11T05:00:00",
+      "open": 183.89,
+      "high": 184.06,
+      "low": 182.7,
+      "close": 182.88,
+      "direction": "DOWN",
+      "confidence": 59.9,
+      "opacity": 0.35000000000000003
+    },
+    {
+      "time": "2026-01-12T05:00:00",
+      "open": 182.88,
+      "high": 182.94,
+      "low": 181.7,
+      "close": 181.91,
+      "direction": "DOWN",
+      "confidence": 56.3,
+      "opacity": 0.30000000000000004
+    },
+    {
+      "time": "2026-01-13T05:00:00",
+      "open": 181.91,
+      "high": 182.3,
+      "low": 180.38,
+      "close": 180.97,
+      "direction": "DOWN",
+      "confidence": 52.4,
+      "opacity": 0.25
+    },
+    {
+      "time": "2026-01-14T05:00:00",
+      "open": 180.97,
+      "high": 181.67,
+      "low": 179.42,
+      "close": 180.07,
+      "direction": "DOWN",
+      "confidence": 50,
+      "opacity": 0.2
+    }
+  ],
+  "validated": false,
+  "actual_outcome": null
+}

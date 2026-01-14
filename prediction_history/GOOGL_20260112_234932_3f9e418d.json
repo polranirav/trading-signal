@@ -1,0 +1,92 @@
+{
+  "id": "3f9e418d",
+  "symbol": "GOOGL",
+  "timeframe": "5M",
+  "created_at": "2026-01-12T23:49:32.706856",
+  "predictions": [
+    {
+      "period": 1,
+      "label": "+5m",
+      "direction": "UP",
+      "confidence": 58.1
+    },
+    {
+      "period": 2,
+      "label": "+10m",
+      "direction": "UP",
+      "confidence": 62.7
+    },
+    {
+      "period": 3,
+      "label": "+15m",
+      "direction": "UP",
+      "confidence": 54.8
+    },
+    {
+      "period": 4,
+      "label": "+20m",
+      "direction": "DOWN",
+      "confidence": 51.5
+    },
+    {
+      "period": 5,
+      "label": "+25m",
+      "direction": "UP",
+      "confidence": 50
+    }
+  ],
+  "ghost_candles": [
+    {
+      "time": "2026-01-09T05:05:00",
+      "open": 328.57,
+      "high": 330.66,
+      "low": 328.49,
+      "close": 330.35,
+      "direction": "UP",
+      "confidence": 58.1,
+      "opacity": 0.4
+    },
+    {
+      "time": "2026-01-09T05:10:00",
+      "open": 330.35,
+      "high": 332.61,
+      "low": 329.95,
+      "close": 332.21,
+      "direction": "UP",
+      "confidence": 62.7,
+      "opacity": 0.35000000000000003
+    },
+    {
+      "time": "2026-01-09T05:15:00",
+      "open": 332.21,
+      "high": 334.56,
+      "low": 331.32,
+      "close": 333.95,
+      "direction": "UP",
+      "confidence": 54.8,
+      "opacity": 0.30000000000000004
+    },
+    {
+      "time": "2026-01-09T05:20:00",
+      "open": 333.95,
+      "high": 334.14,
+      "low": 331.83,
+      "close": 332.25,
+      "direction": "DOWN",
+      "confidence": 51.5,
+      "opacity": 0.25
+    },
+    {
+      "time": "2026-01-09T05:25:00",
+      "open": 332.25,
+      "high": 334.01,
+      "low": 330.66,
+      "close": 333.91,
+      "direction": "UP",
+      "confidence": 50,
+      "opacity": 0.2
+    }
+  ],
+  "validated": false,
+  "actual_outcome": null
+}

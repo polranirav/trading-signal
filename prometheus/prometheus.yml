@@ -1,0 +1,32 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+rule_files: []
+
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Trading Signals Dashboard
+  - job_name: 'trading-dashboard'
+    static_configs:
+      - targets: ['dashboard:8050']
+    metrics_path: '/metrics'
+
+  # Trading Signals Workers (metrics endpoint)
+  - job_name: 'trading-workers'
+    static_configs:
+      - targets: ['worker-ingestion:9090', 'worker-analysis:9090', 'worker-confluence:9090']
+
+  # Flower (Celery monitoring)
+  - job_name: 'flower'
+    static_configs:
+      - targets: ['flower:5555']

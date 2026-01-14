@@ -1,0 +1,92 @@
+{
+  "id": "ba348f87",
+  "symbol": "MSFT",
+  "timeframe": "1M",
+  "created_at": "2026-01-11T20:14:06.979514",
+  "predictions": [
+    {
+      "period": 1,
+      "label": "+1m",
+      "direction": "DOWN",
+      "confidence": 66.2
+    },
+    {
+      "period": 2,
+      "label": "+2m",
+      "direction": "UP",
+      "confidence": 57.8
+    },
+    {
+      "period": 3,
+      "label": "+3m",
+      "direction": "DOWN",
+      "confidence": 52.4
+    },
+    {
+      "period": 4,
+      "label": "+4m",
+      "direction": "UP",
+      "confidence": 50.9
+    },
+    {
+      "period": 5,
+      "label": "+5m",
+      "direction": "DOWN",
+      "confidence": 53.4
+    }
+  ],
+  "ghost_candles": [
+    {
+      "time": "2026-01-09T05:01:00",
+      "open": 479.28,
+      "high": 479.4,
+      "low": 476.48,
+      "close": 476.5,
+      "direction": "DOWN",
+      "confidence": 66.2,
+      "opacity": 0.4
+    },
+    {
+      "time": "2026-01-09T05:02:00",
+      "open": 476.5,
+      "high": 480.95,
+      "low": 475.76,
+      "close": 479.06,
+      "direction": "UP",
+      "confidence": 57.8,
+      "opacity": 0.35000000000000003
+    },
+    {
+      "time": "2026-01-09T05:03:00",
+      "open": 479.06,
+      "high": 480.2,
+      "low": 475.37,
+      "close": 476.61,
+      "direction": "DOWN",
+      "confidence": 52.4,
+      "opacity": 0.30000000000000004
+    },
+    {
+      "time": "2026-01-09T05:04:00",
+      "open": 476.61,
+      "high": 480.47,
+      "low": 475.16,
+      "close": 479.02,
+      "direction": "UP",
+      "confidence": 50.9,
+      "opacity": 0.25
+    },
+    {
+      "time": "2026-01-09T05:05:00",
+      "open": 479.02,
+      "high": 479.46,
+      "low": 475.11,
+      "close": 476.54,
+      "direction": "DOWN",
+      "confidence": 53.4,
+      "opacity": 0.2
+    }
+  ],
+  "validated": false,
+  "actual_outcome": null
+}
