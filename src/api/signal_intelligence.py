@@ -22,12 +22,22 @@ def get_providers():
     from src.services.signal_intelligence import TechnicalSignalProvider, SignalCategory, SignalTier, Signal
     from src.services.sentiment_provider import SentimentSignalProvider
     from src.services.fundamentals_provider import FundamentalsSignalProvider, MacroSignalProvider
+    from src.services.market_structure_provider import (
+        MarketStructureSignalProvider,
+        CorrelationsSignalProvider,
+        RegimeSignalProvider,
+        ExternalRiskSignalProvider
+    )
     
     return {
         'technical': TechnicalSignalProvider(),
         'sentiment': SentimentSignalProvider(),
         'fundamentals': FundamentalsSignalProvider(),
         'macro': MacroSignalProvider(),
+        'market_structure': MarketStructureSignalProvider(),
+        'correlations': CorrelationsSignalProvider(),
+        'regime': RegimeSignalProvider(),
+        'external': ExternalRiskSignalProvider(),
     }
 
 
@@ -85,7 +95,7 @@ def get_signal_intelligence(symbol: str):
         if requested_categories:
             requested_categories = [c.strip().lower() for c in requested_categories.split(',')]
         else:
-            requested_categories = ['technical', 'sentiment', 'fundamentals', 'macro']
+            requested_categories = ['technical', 'sentiment', 'fundamentals', 'macro', 'market_structure', 'correlations', 'regime', 'external']
         
         include_details = request.args.get('include_details', 'true').lower() == 'true'
         

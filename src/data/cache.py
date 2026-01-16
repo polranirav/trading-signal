@@ -70,6 +70,61 @@ class CacheManager:
             return None
         return pickle.loads(data)
     
+    # ============ GENERIC GET/SET METHODS ============
+    
+    def get(self, key: str) -> Optional[Any]:
+        """
+        Generic get method for any key.
+        
+        Args:
+            key: The cache key
+            
+        Returns:
+            The cached value or None if not found
+        """
+        try:
+            data = self.client.get(key)
+            if data is None:
+                return None
+            # Try to return as string first (for JSON data)
+            try:
+                return data.decode('utf-8')
+            except (UnicodeDecodeError, AttributeError):
+                return self._deserialize(data)
+        except Exception as e:
+            logger.error("Failed to get cache key", key=key, error=str(e))
+            return None
+    
+    def set(self, key: str, value: Any, ex: int = None) -> bool:
+        """
+        Generic set method for any key-value pair.
+        
+        Args:
+            key: The cache key
+            value: The value to cache (string or serializable object)
+            ex: Time-to-live in seconds (optional)
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            # If value is a string, store as-is; otherwise serialize
+            if isinstance(value, str):
+                data = value.encode('utf-8')
+            elif isinstance(value, bytes):
+                data = value
+            else:
+                data = self._serialize(value)
+            
+            if ex:
+                self.client.setex(key, ex, data)
+            else:
+                self.client.set(key, data)
+            return True
+        except Exception as e:
+            logger.error("Failed to set cache key", key=key, error=str(e))
+            return False
+    
     # ============ HEALTH CHECK ============
     
     def is_connected(self) -> bool:

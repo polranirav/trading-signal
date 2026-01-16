@@ -43,6 +43,7 @@ class User(Base):
     # Relationships
     subscriptions = relationship("Subscription", back_populates="user", cascade="all, delete-orphan")
     api_keys = relationship("APIKey", back_populates="user", cascade="all, delete-orphan")
+    preferences = relationship("UserPreferences", uselist=False, backref="user", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<User {self.email}>"
@@ -199,6 +200,9 @@ class UserPreferences(Base):
     # Preferences
     preferred_sectors = Column(JSON, default=list)  # ['Technology', 'Healthcare', ...]
     risk_tolerance = Column(String(20), default='moderate')  # 'conservative', 'moderate', 'aggressive'
+    
+    # External API Keys (User Provided)
+    api_keys = Column(JSON, default=dict)  # {'alphavantage': '...', 'openai': '...'}
     
     # UI Preferences
     theme = Column(String(20), default='dark')

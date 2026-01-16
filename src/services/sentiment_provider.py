@@ -27,6 +27,7 @@ from typing import Dict, List, Optional, Any
 import aiohttp
 import json
 import hashlib
+from flask import g
 
 from src.services.signal_intelligence import (
     SignalProvider, Signal, SignalCategory, SignalTier
@@ -45,9 +46,30 @@ class SentimentSignalProvider(SignalProvider):
     
     def __init__(self):
         super().__init__()
-        self.newsapi_key = os.getenv('NEWS_API_KEY', '')
-        self.finnhub_key = os.getenv('FINNHUB_API_KEY', '')
-        self.alphavantage_key = os.getenv('ALPHA_VANTAGE_KEY', '')
+        # Keys dynamic
+
+    def _get_user_api_key(self, service: str) -> Optional[str]:
+        """Get API key from current user's stored keys, with env fallback."""
+        # 1. Try User's stored API keys from database
+        try:
+            if hasattr(g, 'current_user') and g.current_user:
+                from src.api.user_api_keys import get_user_api_key_decrypted
+                user_id = str(g.current_user.id)
+                key = get_user_api_key_decrypted(user_id, service)
+                if key:
+                    return key
+        except Exception as e:
+            logger.warning(f"Error getting user API key for {service}: {e}")
+            
+        # 2. Fallback to Environment Variables
+        import os
+        env_map = {
+            'newsapi': 'NEWS_API_KEY',
+            'finnhub': 'FINNHUB_API_KEY',
+            'alpha_vantage': 'ALPHA_VANTAGE_KEY',
+            'alphavantage': 'ALPHA_VANTAGE_KEY',
+        }
+        return os.getenv(env_map.get(service, f"{service.upper()}_API_KEY"))
     
     async def get_signals(self, symbol: str) -> List[Signal]:
         """Get all sentiment signals for a symbol."""
@@ -61,10 +83,10 @@ class SentimentSignalProvider(SignalProvider):
         
         # Fetch from multiple sources concurrently
         tasks = [
-            self._fetch_news_sentiment(symbol),
-            self._fetch_analyst_ratings(symbol),
-            self._fetch_social_sentiment(symbol),
-            self._fetch_insider_activity(symbol),
+            self._fetch_news_sentiment(symbol, self._get_user_api_key('newsapi'), self._get_user_api_key('alphavantage'), self._get_user_api_key('finnhub')),
+            self._fetch_analyst_ratings(symbol, self._get_user_api_key('finnhub')),
+            self._fetch_social_sentiment(symbol, self._get_user_api_key('finnhub')),
+            self._fetch_insider_activity(symbol, self._get_user_api_key('finnhub')),
             self._fetch_options_flow(symbol),
         ]
         
@@ -88,15 +110,15 @@ class SentimentSignalProvider(SignalProvider):
         
         return signals
     
-    async def _fetch_news_sentiment(self, symbol: str) -> List[Signal]:
+    async def _fetch_news_sentiment(self, symbol: str, newsapi_key: str, alphavantage_key: str, finnhub_key: str) -> List[Signal]:
         """Fetch news and compute sentiment using multiple sources."""
         signals = []
         
         # Try Alpha Vantage News Sentiment first (has built-in sentiment)
-        if self.alphavantage_key:
+        if alphavantage_key:
             try:
                 session = await self.get_session()
-                url = f"https://www.alphavantage.co/query?function=NEWS_SENTIMENT&tickers={symbol}&apikey={self.alphavantage_key}"
+                url = f"https://www.alphavantage.co/query?function=NEWS_SENTIMENT&tickers={symbol}&apikey={alphavantage_key}"
                 async with session.get(url, timeout=10) as resp:
                     if resp.status == 200:
                         data = await resp.json()
@@ -106,7 +128,7 @@ class SentimentSignalProvider(SignalProvider):
                 logger.warning(f"Alpha Vantage news error: {e}")
         
         # Fallback to NewsAPI
-        if self.newsapi_key:
+        if newsapi_key:
             try:
                 session = await self.get_session()
                 # Get company name for better news search
@@ -124,7 +146,7 @@ class SentimentSignalProvider(SignalProvider):
                 }
                 query = company_queries.get(symbol, symbol)
                 
-                url = f"https://newsapi.org/v2/everything?q={query}&language=en&sortBy=publishedAt&pageSize=50&apiKey={self.newsapi_key}"
+                url = f"https://newsapi.org/v2/everything?q={query}&language=en&sortBy=publishedAt&pageSize=50&apiKey={newsapi_key}"
                 async with session.get(url, timeout=10) as resp:
                     if resp.status == 200:
                         data = await resp.json()
@@ -134,12 +156,12 @@ class SentimentSignalProvider(SignalProvider):
                 logger.warning(f"NewsAPI error: {e}")
         
         # Fallback to Finnhub
-        if self.finnhub_key:
+        if finnhub_key:
             try:
                 session = await self.get_session()
                 end = datetime.now()
                 start = end - timedelta(days=7)
-                url = f"https://finnhub.io/api/v1/company-news?symbol={symbol}&from={start.strftime('%Y-%m-%d')}&to={end.strftime('%Y-%m-%d')}&token={self.finnhub_key}"
+                url = f"https://finnhub.io/api/v1/company-news?symbol={symbol}&from={start.strftime('%Y-%m-%d')}&to={end.strftime('%Y-%m-%d')}&token={finnhub_key}"
                 async with session.get(url, timeout=10) as resp:
                     if resp.status == 200:
                         data = await resp.json()
@@ -313,14 +335,14 @@ class SentimentSignalProvider(SignalProvider):
         
         return signals
     
-    async def _fetch_analyst_ratings(self, symbol: str) -> List[Signal]:
+    async def _fetch_analyst_ratings(self, symbol: str, finnhub_key: str) -> List[Signal]:
         """Fetch analyst ratings and recommendations."""
         signals = []
         
-        if self.finnhub_key:
+        if finnhub_key:
             try:
                 session = await self.get_session()
-                url = f"https://finnhub.io/api/v1/stock/recommendation?symbol={symbol}&token={self.finnhub_key}"
+                url = f"https://finnhub.io/api/v1/stock/recommendation?symbol={symbol}&token={finnhub_key}"
                 async with session.get(url, timeout=10) as resp:
                     if resp.status == 200:
                         data = await resp.json()
@@ -350,15 +372,15 @@ class SentimentSignalProvider(SignalProvider):
         
         return signals
     
-    async def _fetch_social_sentiment(self, symbol: str) -> List[Signal]:
+    async def _fetch_social_sentiment(self, symbol: str, finnhub_key: str) -> List[Signal]:
         """Fetch social media sentiment (Reddit, Twitter, StockTwits)."""
         signals = []
         
         # Finnhub social sentiment
-        if self.finnhub_key:
+        if finnhub_key:
             try:
                 session = await self.get_session()
-                url = f"https://finnhub.io/api/v1/stock/social-sentiment?symbol={symbol}&token={self.finnhub_key}"
+                url = f"https://finnhub.io/api/v1/stock/social-sentiment?symbol={symbol}&token={finnhub_key}"
                 async with session.get(url, timeout=10) as resp:
                     if resp.status == 200:
                         data = await resp.json()
@@ -404,14 +426,14 @@ class SentimentSignalProvider(SignalProvider):
         
         return signals
     
-    async def _fetch_insider_activity(self, symbol: str) -> List[Signal]:
+    async def _fetch_insider_activity(self, symbol: str, finnhub_key: str) -> List[Signal]:
         """Fetch insider trading activity."""
         signals = []
         
-        if self.finnhub_key:
+        if finnhub_key:
             try:
                 session = await self.get_session()
-                url = f"https://finnhub.io/api/v1/stock/insider-transactions?symbol={symbol}&token={self.finnhub_key}"
+                url = f"https://finnhub.io/api/v1/stock/insider-transactions?symbol={symbol}&token={finnhub_key}"
                 async with session.get(url, timeout=10) as resp:
                     if resp.status == 200:
                         data = await resp.json()

@@ -30,6 +30,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 import aiohttp
 import json
+from flask import g
 
 from src.services.signal_intelligence import (
     SignalProvider, Signal, SignalCategory, SignalTier
@@ -48,8 +49,30 @@ class FundamentalsSignalProvider(SignalProvider):
     
     def __init__(self):
         super().__init__()
-        self.fmp_key = os.getenv('FMP_API_KEY', '')
-        self.alphavantage_key = os.getenv('ALPHA_VANTAGE_KEY', '')
+        # Keys are now fetched dynamically per user
+    
+    def _get_user_api_key(self, service: str) -> Optional[str]:
+        """Get API key from current user's stored keys, with env fallback."""
+        # 1. Try User's stored API keys from database
+        try:
+            if hasattr(g, 'current_user') and g.current_user:
+                from src.api.user_api_keys import get_user_api_key_decrypted
+                user_id = str(g.current_user.id)
+                key = get_user_api_key_decrypted(user_id, service)
+                if key:
+                    return key
+        except Exception as e:
+            logger.warning(f"Error getting user API key for {service}: {e}")
+            
+        # 2. Fallback to Environment Variables
+        import os
+        env_map = {
+            'fmp': 'FMP_API_KEY',
+            'alpha_vantage': 'ALPHA_VANTAGE_KEY',
+            'alphavantage': 'ALPHA_VANTAGE_KEY',
+            'fred': 'FRED_API_KEY'
+        }
+        return os.getenv(env_map.get(service, f"{service.upper()}_API_KEY"))
     
     async def get_signals(self, symbol: str) -> List[Signal]:
         """Get fundamental signals for a symbol."""
@@ -62,12 +85,14 @@ class FundamentalsSignalProvider(SignalProvider):
                     for s in cached.get("signals", [])]
         
         # Try Financial Modeling Prep first
-        if self.fmp_key:
-            signals = await self._fetch_fmp_fundamentals(symbol)
+        fmp_key = self._get_user_api_key('fmp')
+        if fmp_key:
+             signals = await self._fetch_fmp_fundamentals(symbol, fmp_key)
         
         # Fallback to Alpha Vantage
-        if not signals and self.alphavantage_key:
-            signals = await self._fetch_alphavantage_fundamentals(symbol)
+        alphavantage_key = self._get_user_api_key('alphavantage')
+        if not signals and alphavantage_key:
+            signals = await self._fetch_alphavantage_fundamentals(symbol, alphavantage_key)
         
         # Fallback to mock data
         if not signals:
@@ -80,7 +105,7 @@ class FundamentalsSignalProvider(SignalProvider):
         
         return signals
     
-    async def _fetch_fmp_fundamentals(self, symbol: str) -> List[Signal]:
+    async def _fetch_fmp_fundamentals(self, symbol: str, api_key: str) -> List[Signal]:
         """Fetch from Financial Modeling Prep API."""
         signals = []
         
@@ -88,7 +113,7 @@ class FundamentalsSignalProvider(SignalProvider):
             session = await self.get_session()
             
             # Key Metrics
-            url = f"https://financialmodelingprep.com/api/v3/key-metrics-ttm/{symbol}?apikey={self.fmp_key}"
+            url = f"https://financialmodelingprep.com/api/v3/key-metrics-ttm/{symbol}?apikey={api_key}"
             async with session.get(url, timeout=10) as resp:
                 if resp.status == 200:
                     data = await resp.json()
@@ -97,7 +122,7 @@ class FundamentalsSignalProvider(SignalProvider):
                         signals.extend(self._parse_fmp_metrics(metrics, symbol))
             
             # Ratios
-            url = f"https://financialmodelingprep.com/api/v3/ratios-ttm/{symbol}?apikey={self.fmp_key}"
+            url = f"https://financialmodelingprep.com/api/v3/ratios-ttm/{symbol}?apikey={api_key}"
             async with session.get(url, timeout=10) as resp:
                 if resp.status == 200:
                     data = await resp.json()
@@ -106,7 +131,7 @@ class FundamentalsSignalProvider(SignalProvider):
                         signals.extend(self._parse_fmp_ratios(ratios, symbol))
             
             # Rating
-            url = f"https://financialmodelingprep.com/api/v3/rating/{symbol}?apikey={self.fmp_key}"
+            url = f"https://financialmodelingprep.com/api/v3/rating/{symbol}?apikey={api_key}"
             async with session.get(url, timeout=10) as resp:
                 if resp.status == 200:
                     data = await resp.json()
@@ -321,13 +346,13 @@ class FundamentalsSignalProvider(SignalProvider):
         
         return signals
     
-    async def _fetch_alphavantage_fundamentals(self, symbol: str) -> List[Signal]:
+    async def _fetch_alphavantage_fundamentals(self, symbol: str, api_key: str) -> List[Signal]:
         """Fetch from Alpha Vantage."""
         signals = []
         
         try:
             session = await self.get_session()
-            url = f"https://www.alphavantage.co/query?function=OVERVIEW&symbol={symbol}&apikey={self.alphavantage_key}"
+            url = f"https://www.alphavantage.co/query?function=OVERVIEW&symbol={symbol}&apikey={api_key}"
             
             async with session.get(url, timeout=10) as resp:
                 if resp.status == 200:
@@ -466,7 +491,27 @@ class MacroSignalProvider(SignalProvider):
     
     def __init__(self):
         super().__init__()
-        self.fred_key = os.getenv('FRED_API_KEY', '')
+        # Keys dynamic
+
+    def _get_user_api_key(self, service: str) -> Optional[str]:
+        """Get API key from current user's stored keys, with env fallback."""
+        # 1. Try User's stored API keys from database
+        try:
+            if hasattr(g, 'current_user') and g.current_user:
+                from src.api.user_api_keys import get_user_api_key_decrypted
+                user_id = str(g.current_user.id)
+                key = get_user_api_key_decrypted(user_id, service)
+                if key:
+                    return key
+        except Exception as e:
+            logger.warning(f"Error getting user API key for {service}: {e}")
+            
+        # 2. Fallback to Environment Variables
+        import os
+        env_map = {
+            'fred': 'FRED_API_KEY'
+        }
+        return os.getenv(env_map.get(service, f"{service.upper()}_API_KEY"))
     
     async def get_signals(self, symbol: str) -> List[Signal]:
         """Get macro signals (same for all symbols, but with sector adjustments)."""
@@ -480,8 +525,9 @@ class MacroSignalProvider(SignalProvider):
             return self._adjust_for_sector(base_signals, symbol)
         
         # Fetch from FRED API
-        if self.fred_key:
-            signals = await self._fetch_fred_data()
+        fred_key = self._get_user_api_key('fred')
+        if fred_key:
+            signals = await self._fetch_fred_data(fred_key)
         
         # Fallback to mock
         if not signals:
@@ -494,7 +540,7 @@ class MacroSignalProvider(SignalProvider):
         
         return self._adjust_for_sector(signals, symbol)
     
-    async def _fetch_fred_data(self) -> List[Signal]:
+    async def _fetch_fred_data(self, api_key: str) -> List[Signal]:
         """Fetch data from FRED API."""
         signals = []
         
@@ -515,7 +561,7 @@ class MacroSignalProvider(SignalProvider):
             
             for series_id, (name, desc) in series_map.items():
                 try:
-                    url = f"https://api.stlouisfed.org/fred/series/observations?series_id={series_id}&api_key={self.fred_key}&file_type=json&sort_order=desc&limit=5"
+                    url = f"https://api.stlouisfed.org/fred/series/observations?series_id={series_id}&api_key={api_key}&file_type=json&sort_order=desc&limit=5"
                     
                     async with session.get(url, timeout=10) as resp:
                         if resp.status == 200:

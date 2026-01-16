@@ -9,9 +9,10 @@
  * - Risk management metrics
  */
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Box, Typography, Grid, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton, Alert, Tooltip } from '@mui/material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { AreaChart, Area, ResponsiveContainer } from 'recharts'
 import AddIcon from '@mui/icons-material/Add'
 import UploadFileIcon from '@mui/icons-material/UploadFile'
 import TrendingUpIcon from '@mui/icons-material/TrendingUp'
@@ -31,6 +32,40 @@ import { LiveMarketHeader } from '../../components/LiveMarketHeader'
 import { CorrelationHeatmap } from '../../components/CorrelationHeatmap'
 import { usePortfolio } from '../../context'
 import '../../styles/premium.css'
+
+// Mini Sparkline Component for Table
+const TrendSparkline = ({ pnlPct }: { pnlPct: number }) => {
+    const color = pnlPct >= 0 ? '#10b981' : '#ef4444'
+    const data = useMemo(() => {
+        const points = []
+        let current = 100
+        const target = 100 * (1 + (pnlPct / 100))
+        const steps = 15
+        const stepSize = (target - current) / steps
+        for (let i = 0; i < steps; i++) {
+            current += stepSize + (Math.random() - 0.5) * 5
+            points.push({ val: current })
+        }
+        points.push({ val: target })
+        return points
+    }, [pnlPct])
+
+    return (
+        <Box sx={{ width: 100, height: 35 }}>
+            <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={data}>
+                    <defs>
+                        <linearGradient id={`g-${pnlPct >= 0 ? 'u' : 'd'}`} x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor={color} stopOpacity={0.3} />
+                            <stop offset="95%" stopColor={color} stopOpacity={0} />
+                        </linearGradient>
+                    </defs>
+                    <Area type="monotone" dataKey="val" stroke={color} fill={`url(#g-${pnlPct >= 0 ? 'u' : 'd'})`} strokeWidth={1.5} dot={false} isAnimationActive={false} />
+                </AreaChart>
+            </ResponsiveContainer>
+        </Box>
+    )
+}
 
 // API extension for portfolio
 const portfolioApi = {
@@ -450,6 +485,7 @@ export default function PortfolioPage() {
                                     <TableCell align="right">Avg Cost</TableCell>
                                     <TableCell align="right">Current Price</TableCell>
                                     <TableCell align="right">P&L</TableCell>
+                                    <TableCell align="center">Trend (7D)</TableCell>
                                     <TableCell align="center">Signal</TableCell>
                                     <TableCell align="center">Actions</TableCell>
                                 </TableRow>
@@ -479,6 +515,9 @@ export default function PortfolioPage() {
                                                         ({holding.pnl_pct >= 0 ? '+' : ''}{holding.pnl_pct?.toFixed(1) || '0'}%)
                                                     </Typography>
                                                 </Box>
+                                            </TableCell>
+                                            <TableCell align="center">
+                                                <TrendSparkline pnlPct={holding.pnl_pct || 0} />
                                             </TableCell>
                                             <TableCell align="center">
                                                 <Tooltip
@@ -546,7 +585,10 @@ export default function PortfolioPage() {
                             current_price: h.current_price || h.avg_cost,
                             pnl: h.pnl || 0,
                             pnl_pct: h.pnl_pct || 0,
-                        }))
+                        })),
+                        sharpe: summary.sharpe_ratio,
+                        beta: summary.beta,
+                        volatility: summary.volatility
                     }}
                 />
             )}

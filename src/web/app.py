@@ -44,7 +44,7 @@ app.title = "Trading Signals Pro"
 server = app.server
 
 # Configure Flask server for sessions and security
-server.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
+server.secret_key = settings.SECRET_KEY
 server.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='Lax',

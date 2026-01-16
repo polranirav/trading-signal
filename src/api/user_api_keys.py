@@ -9,9 +9,9 @@ from flask import Blueprint, request, g
 from cryptography.fernet import Fernet
 import os
 import json
-import asyncio
-import aiohttp
+import requests
 from datetime import datetime
+from typing import Optional
 
 from src.api.utils import success_response, error_response, require_api_key_or_auth
 from src.data.persistence import get_database
@@ -72,23 +72,43 @@ SUPPORTED_SERVICES = {
     },
     'fred': {
         'name': 'FRED (Federal Reserve)',
-        'description': 'Macroeconomic data: GDP, inflation, interest rates, employment',
+        'description': 'Macroeconomic data: GDP, inflation, interest rates, employment, VIX, yield curves, credit spreads',
         'url': 'https://fred.stlouisfed.org/',
         'free_tier': 'Unlimited (registration required)',
         'test_endpoint': 'https://api.stlouisfed.org/fred/series?series_id=GDP&api_key={key}&file_type=json',
-        'signals': ['Fed Rate', 'CPI Inflation', 'GDP Growth', 'Unemployment'],
+        'signals': ['Fed Rate', 'CPI Inflation', 'GDP Growth', 'Unemployment', 'VIX', 'Yield Curve', 'Credit Spreads', 'Financial Stress'],
         'icon': 'account_balance',
         'color': '#06b6d4',
     },
     'polygon': {
         'name': 'Polygon.io',
-        'description': 'Real-time and historical market data, aggregates, options',
+        'description': 'Real-time and historical market data, aggregates, options, market structure',
         'url': 'https://polygon.io/',
         'free_tier': '5 API calls/min',
         'test_endpoint': 'https://api.polygon.io/v2/aggs/ticker/AAPL/prev?apiKey={key}',
-        'signals': ['Price Data', 'Volume Analysis', 'Options Data'],
+        'signals': ['Price Data', 'Volume Analysis', 'Options Data', 'Market Structure'],
         'icon': 'hexagon',
         'color': '#ec4899',
+    },
+    'tiingo': {
+        'name': 'Tiingo',
+        'description': 'Historical prices, fundamentals, news, and IEX real-time data',
+        'url': 'https://www.tiingo.com/',
+        'free_tier': '500 requests/hour',
+        'test_endpoint': 'https://api.tiingo.com/api/test?token={key}',
+        'signals': ['Price Data', 'Fundamentals', 'News', 'Market Structure'],
+        'icon': 'show_chart',
+        'color': '#14b8a6',
+    },
+    'quandl': {
+        'name': 'Quandl (Nasdaq Data Link)',
+        'description': 'Alternative data, futures, commodities, economic indicators',
+        'url': 'https://data.nasdaq.com/',
+        'free_tier': '50 requests/day',
+        'test_endpoint': 'https://data.nasdaq.com/api/v3/datasets/WIKI/AAPL.json?api_key={key}&rows=1',
+        'signals': ['Commodities', 'Futures', 'Alternative Data', 'Economic Indicators'],
+        'icon': 'insights',
+        'color': '#f97316',
     },
     'openai': {
         'name': 'OpenAI',
@@ -120,10 +140,10 @@ def get_user_api_keys(user_id: str) -> dict:
     """Get all API keys for a user from the database."""
     db = get_database()
     try:
-        # Try to get from user_api_keys table
+        # Try to get from user_api_keys table using SQLAlchemy named parameters
         result = db.execute_query(
-            "SELECT service, encrypted_key, is_valid, last_validated, created_at FROM user_api_keys WHERE user_id = %s",
-            (user_id,)
+            "SELECT service, encrypted_key, is_valid, last_validated, created_at FROM user_api_keys WHERE user_id = :user_id",
+            {"user_id": user_id}
         )
         if result:
             return {row['service']: {
@@ -137,22 +157,51 @@ def get_user_api_keys(user_id: str) -> dict:
     return {}
 
 
+def get_user_api_key_decrypted(user_id: str, service: str) -> Optional[str]:
+    """
+    Get a decrypted API key for a specific service.
+    Used by signal providers to fetch data with user's API keys.
+    """
+    stored_keys = get_user_api_keys(user_id)
+    if service in stored_keys:
+        encrypted = stored_keys[service].get('encrypted_key')
+        if encrypted:
+            return decrypt_api_key(encrypted)
+    return None
+
+
+def get_all_user_api_keys_decrypted(user_id: str) -> dict:
+    """
+    Get all decrypted API keys for a user.
+    Returns: {'service_name': 'decrypted_key', ...}
+    """
+    stored_keys = get_user_api_keys(user_id)
+    decrypted = {}
+    for service, data in stored_keys.items():
+        encrypted = data.get('encrypted_key')
+        if encrypted:
+            key = decrypt_api_key(encrypted)
+            if key:
+                decrypted[service] = key
+    return decrypted
+
+
 def save_user_api_key(user_id: str, service: str, encrypted_key: str, is_valid: bool = None):
     """Save or update an API key for a user."""
     db = get_database()
     try:
-        # Upsert the API key
+        # Upsert the API key using SQLAlchemy named parameters
         db.execute_query(
             """
             INSERT INTO user_api_keys (user_id, service, encrypted_key, is_valid, last_validated, created_at, updated_at)
-            VALUES (%s, %s, %s, %s, NOW(), NOW(), NOW())
+            VALUES (:user_id, :service, :encrypted_key, :is_valid, NOW(), NOW(), NOW())
             ON CONFLICT (user_id, service) 
             DO UPDATE SET encrypted_key = EXCLUDED.encrypted_key, 
                           is_valid = EXCLUDED.is_valid,
                           last_validated = NOW(),
                           updated_at = NOW()
             """,
-            (user_id, service, encrypted_key, is_valid)
+            {"user_id": user_id, "service": service, "encrypted_key": encrypted_key, "is_valid": is_valid}
         )
         return True
     except Exception as e:
@@ -172,18 +221,18 @@ def save_user_api_key(user_id: str, service: str, encrypted_key: str, is_valid: 
                     UNIQUE(user_id, service)
                 )
             """)
-            # Retry the insert
+            # Retry the insert with named parameters
             db.execute_query(
                 """
                 INSERT INTO user_api_keys (user_id, service, encrypted_key, is_valid, last_validated, created_at, updated_at)
-                VALUES (%s, %s, %s, %s, NOW(), NOW(), NOW())
+                VALUES (:user_id, :service, :encrypted_key, :is_valid, NOW(), NOW(), NOW())
                 ON CONFLICT (user_id, service) 
                 DO UPDATE SET encrypted_key = EXCLUDED.encrypted_key, 
                               is_valid = EXCLUDED.is_valid,
                               last_validated = NOW(),
                               updated_at = NOW()
                 """,
-                (user_id, service, encrypted_key, is_valid)
+                {"user_id": user_id, "service": service, "encrypted_key": encrypted_key, "is_valid": is_valid}
             )
             return True
         except Exception as e2:
@@ -196,8 +245,8 @@ def delete_user_api_key(user_id: str, service: str) -> bool:
     db = get_database()
     try:
         db.execute_query(
-            "DELETE FROM user_api_keys WHERE user_id = %s AND service = %s",
-            (user_id, service)
+            "DELETE FROM user_api_keys WHERE user_id = :user_id AND service = :service",
+            {"user_id": user_id, "service": service}
         )
         return True
     except Exception as e:
@@ -205,7 +254,7 @@ def delete_user_api_key(user_id: str, service: str) -> bool:
         return False
 
 
-async def test_api_key(service: str, key: str) -> tuple[bool, str]:
+def test_api_key(service: str, key: str) -> tuple[bool, str]:
     """Test if an API key is valid by making a test request."""
     if service not in SUPPORTED_SERVICES:
         return False, "Unknown service"
@@ -219,31 +268,25 @@ async def test_api_key(service: str, key: str) -> tuple[bool, str]:
     
     try:
         url = test_url.format(key=key)
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, timeout=10) as resp:
-                if resp.status == 200:
-                    return True, "Key validated successfully"
-                elif resp.status == 401 or resp.status == 403:
-                    return False, "Invalid API key"
-                elif resp.status == 429:
-                    return True, "Key valid (rate limited)"
-                else:
-                    return False, f"Validation failed (HTTP {resp.status})"
-    except asyncio.TimeoutError:
+        resp = requests.get(url, timeout=10)
+        
+        if resp.status_code == 200:
+            return True, "Key validated successfully"
+        elif resp.status_code in [401, 403]:
+            return False, "Invalid API key"
+        elif resp.status_code == 429:
+            return True, "Key valid (rate limited)"
+        else:
+            return False, f"Validation failed (HTTP {resp.status_code})"
+            
+    except requests.Timeout:
         return False, "Validation timeout"
     except Exception as e:
         logger.warning(f"API key test error: {e}")
         return False, f"Validation error: {str(e)}"
 
 
-def run_async(coro):
-    """Run async function in sync context."""
-    try:
-        loop = asyncio.get_event_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-    return loop.run_until_complete(coro)
+
 
 
 @user_api_keys_bp.route('/user-api-keys', methods=['GET'])
@@ -253,8 +296,9 @@ def get_api_keys():
     Get all external API keys for the current user.
     Returns service metadata and connection status, not the actual keys.
     """
+
     try:
-        user_id = g.get('user_id', 'default')
+        user_id = str(g.current_user.id)
         stored_keys = get_user_api_keys(user_id)
         
         # Build response with service info and status
@@ -307,7 +351,7 @@ def save_api_key(service: str):
         if service not in SUPPORTED_SERVICES:
             return error_response(f"Unknown service: {service}", 400)
         
-        user_id = g.get('user_id', 'default')
+        user_id = str(g.current_user.id)
         data = request.json or {}
         api_key = data.get('api_key', '').strip()
         
@@ -315,7 +359,7 @@ def save_api_key(service: str):
             return error_response("API key is required", 400)
         
         # Test the key
-        is_valid, message = run_async(test_api_key(service, api_key))
+        is_valid, message = test_api_key(service, api_key)
         
         # Encrypt and save
         encrypted = encrypt_api_key(api_key)
@@ -346,7 +390,7 @@ def remove_api_key(service: str):
         if service not in SUPPORTED_SERVICES:
             return error_response(f"Unknown service: {service}", 400)
         
-        user_id = g.get('user_id', 'default')
+        user_id = str(g.current_user.id)
         deleted = delete_user_api_key(user_id, service)
         
         if not deleted:
@@ -369,7 +413,8 @@ def test_stored_key(service: str):
         if service not in SUPPORTED_SERVICES:
             return error_response(f"Unknown service: {service}", 400)
         
-        user_id = g.get('user_id', 'default')
+        
+        user_id = str(g.current_user.id)
         stored_keys = get_user_api_keys(user_id)
         
         if service not in stored_keys or not stored_keys[service].get('encrypted_key'):
@@ -377,7 +422,7 @@ def test_stored_key(service: str):
         
         # Decrypt and test
         api_key = decrypt_api_key(stored_keys[service]['encrypted_key'])
-        is_valid, message = run_async(test_api_key(service, api_key))
+        is_valid, message = test_api_key(service, api_key)
         
         # Update validation status
         save_user_api_key(
@@ -401,7 +446,7 @@ def test_stored_key(service: str):
 
 
 # Helper function for signal providers to get user's API key
-def get_user_decrypted_key(user_id: str, service: str) -> str | None:
+def get_user_decrypted_key(user_id: str, service: str) -> Optional[str]:
     """
     Get a decrypted API key for a user and service.
     Used by signal providers to get user's custom API keys.

@@ -1,168 +1,198 @@
 /**
- * About Page
- * 
- * Company/product information and mission.
+ * About Page - Modern Tech Design
  */
 
-import { Box, Container, Typography, Grid, Card, CardContent, Button } from '@mui/material';
+import { Box, Container, Typography, Grid, Card, CardContent, Button, useTheme, alpha, Stack, Avatar } from '@mui/material';
 import { Link } from 'react-router-dom';
-import AppBar from '@mui/material/AppBar';
-import Toolbar from '@mui/material/Toolbar';
+import BoltIcon from '@mui/icons-material/Bolt';
+import SecurityIcon from '@mui/icons-material/Security';
+import SpeedIcon from '@mui/icons-material/Speed';
+import PsychologyIcon from '@mui/icons-material/Psychology';
+import GroupsIcon from '@mui/icons-material/Groups';
+import SendIcon from '@mui/icons-material/Send';
+import CodeIcon from '@mui/icons-material/Code';
+
+// Reusing Navbar component for consistency
+const Navbar = () => {
+  const theme = useTheme();
+  return (
+    <Box
+      sx={{
+        py: 2,
+        px: 3,
+        position: 'sticky',
+        top: 0,
+        zIndex: 1000,
+        backdropFilter: 'blur(20px)',
+        backgroundColor: alpha(theme.palette.background.default, 0.7),
+        borderBottom: `1px solid ${alpha(theme.palette.common.white, 0.05)}`,
+      }}
+    >
+      <Container maxWidth="xl">
+        <Stack direction="row" justifyContent="space-between" alignItems="center">
+          <Link to="/" style={{ textDecoration: 'none' }}>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Box sx={{
+                p: 0.5,
+                borderRadius: 1,
+                bgcolor: alpha(theme.palette.primary.main, 0.1),
+                color: 'primary.main',
+                display: 'flex'
+              }}>
+                <BoltIcon />
+              </Box>
+              <Typography variant="h6" fontWeight="bold" sx={{ color: 'common.white', letterSpacing: -0.5 }}>
+                TRADING<Typography component="span" variant="h6" sx={{ color: 'primary.main', fontWeight: 'bold' }}>PRO</Typography>
+              </Typography>
+            </Stack>
+          </Link>
+
+          <Stack direction="row" spacing={2} alignItems="center">
+            <Button component={Link} to="/features" color="inherit" sx={{ color: 'text.secondary' }}>Features</Button>
+            <Button component={Link} to="/pricing" color="inherit" sx={{ color: 'text.secondary' }}>Pricing</Button>
+            <Button component={Link} to="/login" variant="text" sx={{ color: 'text.secondary' }}>
+              Log In
+            </Button>
+            <Button
+              component={Link}
+              to="/register"
+              variant="contained"
+              endIcon={<SendIcon fontSize="small" />}
+              sx={{
+                background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                color: 'white',
+                fontWeight: 600,
+                borderRadius: 2,
+              }}
+            >
+              Get Started
+            </Button>
+          </Stack>
+        </Stack>
+      </Container>
+    </Box>
+  );
+};
 
 export default function AboutPage() {
+  const theme = useTheme();
+
   return (
-    <Box>
-      <AppBar position="static" elevation={0}>
-        <Toolbar>
-          <Typography variant="h6" sx={{ flexGrow: 1 }} component={Link} to="/" style={{ textDecoration: 'none', color: 'inherit' }}>
-            Trading Signals Pro
+    <Box sx={{ bgcolor: 'background.default', minHeight: '100vh', paddingBottom: 10 }}>
+      <Navbar />
+
+      {/* Hero Section */}
+      <Box sx={{
+        position: 'relative',
+        overflow: 'hidden',
+        py: 15,
+        background: `radial-gradient(circle at 50% 0%, ${alpha(theme.palette.primary.dark, 0.2)} 0%, ${theme.palette.background.default} 70%)`,
+      }}>
+        <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
+          <Typography variant="overline" display="block" align="center" sx={{ color: 'primary.main', letterSpacing: 3, mb: 1, fontWeight: 'bold' }}>
+            OUR VISION
           </Typography>
-          <Button color="inherit" component={Link} to="/features">
-            Features
-          </Button>
-          <Button color="inherit" component={Link} to="/pricing">
-            Pricing
-          </Button>
-          <Button color="inherit" component={Link} to="/login">
-            Login
-          </Button>
-        </Toolbar>
-      </AppBar>
-
-      <Container maxWidth="lg" sx={{ py: 8 }}>
-        <Typography variant="h3" component="h1" gutterBottom fontWeight={700} align="center">
-          About Trading Signals Pro
-        </Typography>
-        <Typography variant="h6" color="text.secondary" sx={{ mb: 6 }} align="center">
-          AI-powered trading signals for informed investment decisions.
-        </Typography>
-
-        {/* Mission */}
-        <Card sx={{ mb: 6 }}>
-          <CardContent>
-            <Typography variant="h5" component="h2" gutterBottom fontWeight={700}>
-              Our Mission
-            </Typography>
-            <Typography variant="body1" paragraph>
-              Trading Signals Pro empowers traders and investors with cutting-edge AI technology to make
-              better-informed trading decisions. We combine advanced machine learning, technical analysis,
-              and sentiment analysis to deliver high-quality trading signals with comprehensive risk metrics.
-            </Typography>
-            <Typography variant="body1">
-              Our goal is to democratize access to professional-grade trading tools, making sophisticated
-              market analysis available to traders of all levels.
-            </Typography>
-          </CardContent>
-        </Card>
-
-        {/* Technology */}
-        <Box sx={{ mb: 6 }}>
-          <Typography variant="h5" component="h2" gutterBottom fontWeight={700} sx={{ mb: 3 }}>
-            Technology
+          <Typography variant="h2" component="h1" gutterBottom fontWeight={800} align="center" sx={{ fontSize: { xs: '2.5rem', md: '4rem' } }}>
+            Decoding the Market <br />
+            <Box component="span" sx={{
+              background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent'
+            }}>
+              Through Intelligence
+            </Box>
           </Typography>
-          <Grid container spacing={3}>
-            <Grid item xs={12} md={6}>
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>
-                    Machine Learning
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Advanced deep learning models including LSTMs, Temporal Fusion Transformers, and ensemble
-                    methods trained on vast amounts of market data.
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>
-                    Sentiment Analysis
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    State-of-the-art FinBERT models and GPT-4 integration for real-time market sentiment
-                    analysis from news, social media, and financial reports.
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>
-                    Risk Management
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Comprehensive risk metrics including Value at Risk (VaR), Conditional VaR (CVaR),
-                    and dynamic position sizing based on Kelly Criterion principles.
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>
-                    Real-Time Processing
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    High-performance infrastructure ensuring fast signal generation and delivery,
-                    with scalable architecture for growing user bases.
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
+          <Typography variant="h6" color="text.secondary" sx={{ mb: 6, maxWidth: '800px', mx: 'auto', lineHeight: 1.6 }} align="center">
+            We are a collective of data scientists, quant traders, and engineers building the next generation of financial intelligence infrastructure.
+          </Typography>
+        </Container>
+      </Box>
+
+      {/* Core Values */}
+      <Container maxWidth="lg">
+        <Grid container spacing={4}>
+          <Grid item xs={12} md={4}>
+            <Card sx={{ height: '100%', bgcolor: alpha(theme.palette.background.paper, 0.4), border: `1px solid ${alpha(theme.palette.common.white, 0.05)}` }}>
+              <CardContent sx={{ p: 4 }}>
+                <Box sx={{ bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main', width: 48, height: 48, borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 3 }}>
+                  <CodeIcon />
+                </Box>
+                <Typography variant="h5" gutterBottom fontWeight="bold">Data First</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  We believe in hard data over intuition. Our models process petabytes of market history to find statistically significant edges.
+                </Typography>
+              </CardContent>
+            </Card>
           </Grid>
-        </Box>
+          <Grid item xs={12} md={4}>
+            <Card sx={{ height: '100%', bgcolor: alpha(theme.palette.background.paper, 0.4), border: `1px solid ${alpha(theme.palette.common.white, 0.05)}` }}>
+              <CardContent sx={{ p: 4 }}>
+                <Box sx={{ bgcolor: alpha(theme.palette.secondary.main, 0.1), color: 'secondary.main', width: 48, height: 48, borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 3 }}>
+                  <SpeedIcon />
+                </Box>
+                <Typography variant="h5" gutterBottom fontWeight="bold">Low Latency</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  In high-frequency markets, speed is alpha. Our infrastructure is optimized for sub-millisecond signal delivery.
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <Card sx={{ height: '100%', bgcolor: alpha(theme.palette.background.paper, 0.4), border: `1px solid ${alpha(theme.palette.common.white, 0.05)}` }}>
+              <CardContent sx={{ p: 4 }}>
+                <Box sx={{ bgcolor: alpha(theme.palette.info.main, 0.1), color: 'info.main', width: 48, height: 48, borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 3 }}>
+                  <SecurityIcon />
+                </Box>
+                <Typography variant="h5" gutterBottom fontWeight="bold">Transparency</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  No black boxes. We provide full performance metrics, historical drawdowns, and risk parameters for every signal.
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
 
-        {/* Trust & Security */}
-        <Card sx={{ mb: 6 }}>
-          <CardContent>
-            <Typography variant="h5" component="h2" gutterBottom fontWeight={700}>
-              Trust & Security
+        {/* Team/Tech Section */}
+        <Box sx={{ mt: 15, display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: 'center', gap: 8 }}>
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="h3" gutterBottom fontWeight="bold">The Engine</Typography>
+            <Typography variant="body1" paragraph color="text.secondary" >
+              Our proprietary "DeepWave" engine combines LSTM networks with Transformer architectures to analyze multi-modal data streams: price action, order book depth, and social sentiment.
             </Typography>
-            <Typography variant="body1" paragraph>
-              We take security and data privacy seriously. All user data is encrypted in transit and at rest.
-              We never store your trading credentials or execute trades on your behalf - we provide signals
-              and analysis, you make the decisions.
+            <Typography variant="body1" paragraph color="text.secondary">
+              Running on a distributed cluster of GPU nodes, we re-train our models weekly to adapt to shifting market regimes.
             </Typography>
-            <Typography variant="body1">
-              Our API uses industry-standard authentication methods, and we regularly audit our systems
-              for security vulnerabilities.
-            </Typography>
-          </CardContent>
-        </Card>
-
-        {/* Support */}
-        <Card sx={{ mb: 6 }}>
-          <CardContent>
-            <Typography variant="h5" component="h2" gutterBottom fontWeight={700}>
-              Support
-            </Typography>
-            <Typography variant="body1" paragraph>
-              Need help? We're here for you. All plans include email support, and our Essential and Advanced
-              plans include priority support with faster response times.
-            </Typography>
-            <Typography variant="body1">
-              Visit our API documentation for technical integration help, or contact us directly for
-              account-related questions.
-            </Typography>
-          </CardContent>
-        </Card>
-
-        {/* CTA */}
-        <Box sx={{ textAlign: 'center' }}>
-          <Typography variant="h5" gutterBottom>
-            Ready to Get Started?
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', mt: 3 }}>
-            <Button variant="contained" size="large" component={Link} to="/register">
-              Start Free Trial
+            <Button variant="outlined" size="large" sx={{ mt: 2, borderColor: theme.palette.primary.main, color: theme.palette.primary.main }}>
+              View Technical Whitepaper
             </Button>
-            <Button variant="outlined" size="large" component={Link} to="/pricing">
-              View Pricing
-            </Button>
+          </Box>
+          <Box sx={{ flex: 1, position: 'relative' }}>
+            <Box sx={{
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
+              borderRadius: 4,
+              p: 4,
+              position: 'relative',
+              background: alpha(theme.palette.background.paper, 0.3),
+              backdropFilter: 'blur(10px)'
+            }}>
+              <Typography variant="h4" gutterBottom fontWeight="bold">
+                System Status
+              </Typography>
+              <Stack spacing={2}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', borderBottom: `1px solid ${alpha(theme.palette.common.white, 0.1)}`, pb: 1 }}>
+                  <Typography color="text.secondary">Model Accuracy (24h)</Typography>
+                  <Typography color="success.main" fontWeight="bold">94.2%</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', borderBottom: `1px solid ${alpha(theme.palette.common.white, 0.1)}`, pb: 1 }}>
+                  <Typography color="text.secondary">Active Nodes</Typography>
+                  <Typography color="primary.main" fontWeight="bold">128/128</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Typography color="text.secondary">Sentiment Analysis</Typography>
+                  <Typography color="info.main" fontWeight="bold">ONLINE</Typography>
+                </Box>
+              </Stack>
+            </Box>
           </Box>
         </Box>
       </Container>

@@ -18,6 +18,8 @@ import BalanceIcon from '@mui/icons-material/Balance'
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh'
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet'
 import LightbulbIcon from '@mui/icons-material/Lightbulb'
+import { api } from '../../services/api'
+import { useQuery } from '@tanstack/react-query'
 import { SectionCard } from '../../components/SignalComponents'
 import MetricCard from '../../components/MetricCard'
 import { usePortfolio } from '../../context'
@@ -26,9 +28,34 @@ import '../../styles/premium.css'
 // Scenario types
 type ScenarioType = 'what_if' | 'rebalance' | 'optimize'
 
-export default function StrategyLabPage() {
-    const { holdings, portfolioSymbols, hasPortfolio } = usePortfolio()
+// ... existing code ...
 
+export default function StrategyLabPage() {
+    const { holdings, portfolioSymbols, hasPortfolio, summary } = usePortfolio()
+
+    // Construct portfolioData from context
+    const portfolioData = useMemo(() => {
+        const totalValue = summary?.total_value || 0
+        const allocations = holdings.map((h: any) => ({
+            symbol: h.symbol,
+            allocation: totalValue > 0 ? ((h.current_price * h.shares) / totalValue) * 100 : 0
+        })).sort((a: any, b: any) => b.allocation - a.allocation)
+
+        return {
+            totalValue,
+            allocations
+        }
+    }, [summary, holdings])
+
+    // Fetch signals to power the simulation logic
+    const { data: signalsData } = useQuery({
+        queryKey: ['signals', { limit: 100 }],
+        queryFn: () => api.getSignals({ limit: 100 }),
+    })
+
+    const signals = useMemo(() => signalsData?.signals || [], [signalsData])
+
+    // ... existing state ...
     const [scenarioType, setScenarioType] = useState<ScenarioType>('what_if')
     const [selectedStock, setSelectedStock] = useState('')
     const [action, setAction] = useState<'buy' | 'sell'>('buy')
@@ -37,75 +64,78 @@ export default function StrategyLabPage() {
     const [isRunning, setIsRunning] = useState(false)
     const [hasResults, setHasResults] = useState(false)
 
-    // Set default stock from holdings
-    useEffect(() => {
-        if (holdings && holdings.length > 0 && !selectedStock) {
-            setSelectedStock(holdings[0].symbol)
-        }
-    }, [holdings, selectedStock])
+    // ... existing effects ...
 
-    // Calculate current portfolio allocations
-    const portfolioData = useMemo(() => {
-        if (!holdings || holdings.length === 0) return { totalValue: 0, allocations: [] }
-
-        const totalValue = holdings.reduce((sum: number, h: any) => {
-            return sum + (h.shares * h.avg_cost)
-        }, 0)
-
-        const allocations = holdings.map((h: any) => {
-            const value = h.shares * h.avg_cost
-            return {
-                symbol: h.symbol,
-                shares: h.shares,
-                value,
-                allocation: totalValue > 0 ? (value / totalValue) * 100 : 0,
-            }
-        }).sort((a: any, b: any) => b.allocation - a.allocation)
-
-        return { totalValue, allocations }
-    }, [holdings])
-
-    // Run simulation
+    // Simulation handler
     const runSimulation = () => {
         setIsRunning(true)
+        setHasResults(false)
+
+        // Simulate processing calculation
         setTimeout(() => {
-            setIsRunning(false)
             setHasResults(true)
-        }, 1500)
+            setIsRunning(false)
+        }, 800)
     }
 
-    // Mock simulation results
+    // Mock simulation results - NOW DATA-DRIVEN
     const getSimulationResults = () => {
+        const signal = signals.find((s: any) => s.symbol === selectedStock)
+        const currentPrice = signal?.price_at_signal || 150
+        const confidence = signal?.confluence_score || 0.5
+        const signalType = signal?.signal_type || 'HOLD'
+
+        // Base drift based on signal
+        // If BUY and we BUY -> Positive drift
+        // If SELL and we BUY -> Negative drift
+        let drift = 0
+        if (signalType.includes('BUY')) drift = 0.08 * (confidence + 0.5) // +4% to +12%
+        if (signalType.includes('SELL')) drift = -0.05 * (confidence + 0.5) // -2.5% to -7.5%
+
+        // Add randomness but anchored to the signal
+        const noise = (Math.random() - 0.5) * 0.05
+
         if (scenarioType === 'what_if') {
-            const stockPrice = 150 + Math.random() * 100
-            const cost = shares * stockPrice
-            const projectedGain = action === 'buy'
-                ? (Math.random() * 20 - 5) // -5% to +15%
-                : (Math.random() * 10 - 2) // -2% to +8%
+            const cost = shares * currentPrice
+
+            // Calculate projected gain based on action vs signal
+            let projectedGain = 0
+
+            if (action === 'buy') {
+                projectedGain = (drift + noise) * 100
+            } else {
+                // Short selling / Selling existing
+                projectedGain = -(drift + noise) * 100
+            }
+
+            // Cap reasonable limits
+            projectedGain = Math.max(-15, Math.min(25, projectedGain))
 
             return {
                 title: `${action === 'buy' ? 'Buying' : 'Selling'} ${shares} shares of ${selectedStock}`,
                 cost: action === 'buy' ? cost : -cost,
                 projectedReturn: projectedGain,
-                riskLevel: projectedGain > 10 ? 'High' : projectedGain > 5 ? 'Medium' : 'Low',
+                riskLevel: Math.abs(projectedGain) > 10 ? 'High' : Math.abs(projectedGain) > 5 ? 'Medium' : 'Low',
                 diversificationImpact: action === 'buy' ? 'Increased' : 'Decreased',
-                recommendation: projectedGain > 8 ? '✅ Strong opportunity' : projectedGain > 3 ? '⚠️ Moderate opportunity' : '❌ Consider alternatives',
+                recommendation: projectedGain > 5 ? '✅ Strong opportunity' : projectedGain > 1 ? '⚠️ Moderate opportunity' : '❌ Consider alternatives',
             }
         }
 
         if (scenarioType === 'rebalance') {
+            // Rebalancing logic remains portfolio-structure based
             return {
                 title: 'Rebalancing Suggestions',
                 trades: portfolioData.allocations.slice(0, 3).map((a: any) => ({
                     symbol: a.symbol,
                     action: a.allocation > targetAllocation ? 'SELL' : 'BUY',
-                    shares: Math.abs(Math.floor((a.allocation - targetAllocation) * portfolioData.totalValue / 100 / 150)),
+                    shares: Math.abs(Math.floor((a.allocation - targetAllocation) * portfolioData.totalValue / 100 / (signals.find((s: any) => s.symbol === a.symbol)?.price_at_signal || 150))),
                     reason: a.allocation > targetAllocation ? 'Over-allocated' : 'Under-allocated',
                 })),
                 projectedDiversification: '+15%',
                 riskReduction: '-8%',
             }
         }
+
 
         // Optimize
         return {

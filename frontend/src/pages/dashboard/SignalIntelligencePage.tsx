@@ -151,9 +151,11 @@ const SignalCategoryCard = ({
     onToggle: () => void
     color?: string
 }) => {
-    const avgScore = signals.reduce((acc, s) => acc + s.value, 0) / signals.length
-    const bullishCount = signals.filter(s => s.value > 0.5).length
-    const bearishCount = signals.filter(s => s.value < 0.5).length
+    // Handle undefined or empty signals array
+    const safeSignals = signals || [];
+    const avgScore = safeSignals.length > 0 ? safeSignals.reduce((acc, s) => acc + s.value, 0) / safeSignals.length : 0;
+    const bullishCount = safeSignals.filter(s => s.value > 0.5).length;
+    const bearishCount = safeSignals.filter(s => s.value < 0.5).length;
 
     return (
         <Accordion
@@ -189,7 +191,7 @@ const SignalCategoryCard = ({
                             {title}
                         </Typography>
                         <Typography sx={{ color: '#64748b', fontSize: '0.75rem' }}>
-                            {signals.length} signals • {bullishCount} bullish • {bearishCount} bearish
+                            {safeSignals.length} signals • {bullishCount} bullish • {bearishCount} bearish
                         </Typography>
                     </Box>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mr: 2 }}>
@@ -241,7 +243,7 @@ const SignalCategoryCard = ({
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {signals.map((signal, idx) => (
+                        {safeSignals.map((signal, idx) => (
                             <TableRow key={idx} sx={{ '&:hover': { bgcolor: 'rgba(255,255,255,0.02)' } }}>
                                 <TableCell sx={{ borderColor: 'rgba(255,255,255,0.05)' }}>
                                     <Box>

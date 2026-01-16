@@ -73,10 +73,12 @@ export default function ChartsPage() {
     // Get current timeframe config
     const currentTimeframeConfig = timeframes.find(tf => tf.value === timeframe) || timeframes[3]
 
-    // Fetch signals - increased limit for more coverage
+    // Fetch signals - Pass symbol to trigger backend AI generation loop if enabled
     const { data: signalsData, isError } = useQuery({
-        queryKey: ['signals', { limit: 100 }],
-        queryFn: () => api.getSignals({ limit: 100 }),
+        queryKey: ['signals', { limit: 100, symbol: selectedSymbol }],
+        queryFn: () => api.getSignals({ limit: 100, symbol: selectedSymbol }),
+        // Refetch when symbol changes to get fresh AI analysis
+        enabled: !!selectedSymbol
     })
 
     const signals = signalsData?.signals || []
@@ -180,8 +182,14 @@ export default function ChartsPage() {
     const upCount = predictions.filter(p => p.direction === 'UP').length
     const downCount = predictions.filter(p => p.direction === 'DOWN').length
 
-    // AI Reasoning - Dynamic based on actual signal data
+    // AI Reasoning - Use backend generated rationale if available
     const aiReasoning = useMemo(() => {
+        // If technical rationale is substantial (likely from AI), use it directly
+        if (currentSignal?.technical_rationale && currentSignal.technical_rationale.length > 50) {
+            return `${currentSignal.technical_rationale} ${currentSignal.sentiment_rationale || ''}`
+        }
+
+        // Fallback for missing/loading data
         const techRationale = currentSignal?.technical_rationale || 'Technical analysis complete'
         const sentRationale = currentSignal?.sentiment_rationale || 'Sentiment analysis pending'
 

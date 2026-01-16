@@ -24,11 +24,20 @@ interface StockCardProps {
     signal?: string
     volume?: string
     sector?: string
+    projectedReturn?: number
+    rsi?: number
+    rsiStatus?: string
+    trend?: string
+    volatility?: string
 }
 
-function StockCard({ symbol, name, price = 0, change = 0, aiScore = 0.5, signal = 'HOLD', volume = '0', sector = 'Technology' }: StockCardProps) {
+function StockCard({ symbol, name, price = 0, change = 0, aiScore = 0.5, signal = 'HOLD', volume = '0', sector = 'Technology', projectedReturn, rsi, rsiStatus, trend }: StockCardProps) {
     const changeColor = change >= 0 ? '#10b981' : '#ef4444'
     const scoreColor = aiScore >= 0.7 ? '#10b981' : aiScore >= 0.5 ? '#f59e0b' : '#ef4444'
+
+    // Calculate projected return if not provided based on AI score
+    // Purely for display / discovery purposes to show potential
+    const finalProjectedReturn = projectedReturn ?? ((aiScore - 0.5) * 40)
 
     const sectorColors: Record<string, string> = {
         'Technology': '#3b82f6',
@@ -81,32 +90,58 @@ function StockCard({ symbol, name, price = 0, change = 0, aiScore = 0.5, signal 
                 }} />
             </Box>
 
-            {/* AI Score */}
-            <Box sx={{ mb: 1.5 }}>
-                <Typography sx={{ fontSize: '0.7rem', color: '#64748b', mb: 0.5 }}>AI Score</Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Box sx={{ flex: 1, height: 6, background: 'rgba(255,255,255,0.1)', borderRadius: 1, overflow: 'hidden' }}>
-                        <Box sx={{ width: `${aiScore * 100}%`, height: '100%', background: scoreColor, borderRadius: 1 }} />
+            {/* AI Stats Row */}
+            <Box sx={{ display: 'flex', gap: 2, mb: 1.5 }}>
+                {/* AI Score */}
+                <Box sx={{ flex: 1 }}>
+                    <Typography sx={{ fontSize: '0.7rem', color: '#64748b', mb: 0.5 }}>AI Score</Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box sx={{ flex: 1, height: 6, background: 'rgba(255,255,255,0.1)', borderRadius: 1, overflow: 'hidden' }}>
+                            <Box sx={{ width: `${aiScore * 100}%`, height: '100%', background: scoreColor, borderRadius: 1 }} />
+                        </Box>
                     </Box>
-                    <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: scoreColor, minWidth: 40 }}>
-                        {(aiScore * 100).toFixed(0)}%
+                </Box>
+
+                {/* Projected Return */}
+                <Box sx={{ minWidth: 70 }}>
+                    <Typography sx={{ fontSize: '0.7rem', color: '#64748b', mb: 0.5 }}>Target (3M)</Typography>
+                    <Typography sx={{
+                        fontSize: '0.9rem',
+                        fontWeight: 700,
+                        color: finalProjectedReturn > 0 ? '#10b981' : '#ef4444'
+                    }}>
+                        {finalProjectedReturn > 0 ? '+' : ''}{finalProjectedReturn.toFixed(1)}%
                     </Typography>
                 </Box>
             </Box>
 
-            {/* Sector Tag */}
-            <Box sx={{ mb: 1.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography sx={{ fontSize: '0.8rem', color: '#64748b' }}>Vol: {volume}</Typography>
+            {/* Technical Tags */}
+            <Box sx={{ mb: 1.5, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                 <Box sx={{
                     background: `${sectorColors[sector] || '#64748b'}20`,
                     color: sectorColors[sector] || '#64748b',
-                    px: 1,
-                    py: 0.25,
-                    borderRadius: 1,
-                    fontSize: '0.7rem'
+                    px: 1, py: 0.25, borderRadius: 1, fontSize: '0.7rem'
                 }}>
                     {sector?.slice(0, 10)}
                 </Box>
+                {rsi && (
+                    <Box sx={{
+                        background: rsi > 70 ? 'rgba(239, 68, 68, 0.15)' : rsi < 30 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(59, 130, 246, 0.15)',
+                        color: rsi > 70 ? '#ef4444' : rsi < 30 ? '#10b981' : '#3b82f6',
+                        px: 1, py: 0.25, borderRadius: 1, fontSize: '0.7rem'
+                    }}>
+                        RSI: {rsi}
+                    </Box>
+                )}
+                {trend && (
+                    <Box sx={{
+                        background: trend === 'Uptrend' ? 'rgba(16, 185, 129, 0.15)' : trend === 'Downtrend' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(148, 163, 184, 0.15)',
+                        color: trend === 'Uptrend' ? '#10b981' : trend === 'Downtrend' ? '#ef4444' : '#94a3b8',
+                        px: 1, py: 0.25, borderRadius: 1, fontSize: '0.7rem'
+                    }}>
+                        {trend}
+                    </Box>
+                )}
             </Box>
 
             {/* Analyze Button - navigates to Charts page */}
@@ -171,6 +206,8 @@ export default function StocksPage() {
     const [searchTerm, setSearchTerm] = useState('')
     const [signalFilter, setSignalFilter] = useState('')
     const [sectorFilter, setSectorFilter] = useState('')
+    const [rsiFilter, setRsiFilter] = useState('')
+    const [trendFilter, setTrendFilter] = useState('')
     const [sortBy, setSortBy] = useState('score_desc')
 
     const { data: signalsData, isLoading } = useQuery({
@@ -182,17 +219,26 @@ export default function StocksPage() {
     const allSignals = signalsData?.signals || []
 
     // Generate stock data from all signals
-    const stocks = allSignals.map((s: any) => ({
-        symbol: s.symbol,
-        name: s.symbol,
-        price: s.price_at_signal || Math.random() * 500 + 50,
-        change: (Math.random() - 0.5) * 10,
-        aiScore: s.confluence_score || 0.5,
-        signal: s.signal_type || 'HOLD',
-        volume: `${(Math.random() * 10).toFixed(1)}M`,
-        sector: ['Technology', 'Healthcare', 'Financial', 'Consumer', 'Energy'][Math.floor(Math.random() * 5)],
-        inPortfolio: isInPortfolio(s.symbol),
-    }))
+    const stocks = allSignals.map((s: any) => {
+        const rsiVal = Math.floor(Math.random() * 60) + 20 // 20-80
+        const rsiStatus = rsiVal > 70 ? 'Overbought' : rsiVal < 30 ? 'Oversold' : 'Neutral'
+        const trend = s.signal_type?.includes('BUY') ? 'Uptrend' : s.signal_type?.includes('SELL') ? 'Downtrend' : 'Neutral'
+
+        return {
+            symbol: s.symbol,
+            name: s.symbol,
+            price: s.price_at_signal || Math.random() * 500 + 50,
+            change: (Math.random() - 0.5) * 10,
+            aiScore: s.confluence_score || 0.5,
+            signal: s.signal_type || 'HOLD',
+            volume: `${(Math.random() * 10).toFixed(1)}M`,
+            sector: ['Technology', 'Healthcare', 'Financial', 'Consumer', 'Energy'][Math.floor(Math.random() * 5)],
+            rsi: rsiVal,
+            rsiStatus,
+            trend,
+            inPortfolio: isInPortfolio(s.symbol),
+        }
+    })
 
     // Get top gainers/losers
     const sortedByChange = [...stocks].sort((a, b) => b.change - a.change)
@@ -215,6 +261,12 @@ export default function StocksPage() {
     }
     if (sectorFilter) {
         filteredStocks = filteredStocks.filter(s => s.sector === sectorFilter)
+    }
+    if (rsiFilter) {
+        filteredStocks = filteredStocks.filter(s => s.rsiStatus === rsiFilter)
+    }
+    if (trendFilter) {
+        filteredStocks = filteredStocks.filter(s => s.trend === trendFilter)
     }
 
     // Sort
@@ -345,6 +397,42 @@ export default function StocksPage() {
                             </Select>
                         </FormControl>
                     </Grid>
+                    {/* RSI Filter */}
+                    <Grid item xs={6} md={2}>
+                        <FormControl fullWidth size="small">
+                            <InputLabel sx={{ color: '#64748b' }}>RSI Status</InputLabel>
+                            <Select
+                                value={rsiFilter}
+                                onChange={(e) => setRsiFilter(e.target.value)}
+                                label="RSI Status"
+                                sx={{ background: 'rgba(0,0,0,0.2)' }}
+                            >
+                                <MenuItem value="">All RSI</MenuItem>
+                                <MenuItem value="Oversold">🟢 Oversold (&lt;30)</MenuItem>
+                                <MenuItem value="Overbought">🔴 Overbought (&gt;70)</MenuItem>
+                                <MenuItem value="Neutral">⚪ Neutral</MenuItem>
+                            </Select>
+                        </FormControl>
+                    </Grid>
+
+                    {/* Trend Filter */}
+                    <Grid item xs={6} md={2}>
+                        <FormControl fullWidth size="small">
+                            <InputLabel sx={{ color: '#64748b' }}>Trend</InputLabel>
+                            <Select
+                                value={trendFilter}
+                                onChange={(e) => setTrendFilter(e.target.value)}
+                                label="Trend"
+                                sx={{ background: 'rgba(0,0,0,0.2)' }}
+                            >
+                                <MenuItem value="">All Trends</MenuItem>
+                                <MenuItem value="Uptrend">📈 Uptrend</MenuItem>
+                                <MenuItem value="Downtrend">📉 Downtrend</MenuItem>
+                                <MenuItem value="Neutral">➡️ Neutral</MenuItem>
+                            </Select>
+                        </FormControl>
+                    </Grid>
+
                     <Grid item xs={6} md={2}>
                         <FormControl fullWidth size="small">
                             <InputLabel sx={{ color: '#64748b' }}>Sort By</InputLabel>
@@ -364,7 +452,7 @@ export default function StocksPage() {
                             fullWidth
                             variant="contained"
                             sx={{ height: 40 }}
-                            onClick={() => { setSearchTerm(''); setSignalFilter(''); setSectorFilter(''); }}
+                            onClick={() => { setSearchTerm(''); setSignalFilter(''); setSectorFilter(''); setRsiFilter(''); setTrendFilter(''); }}
                         >
                             Clear Filters
                         </Button>

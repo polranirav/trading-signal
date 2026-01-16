@@ -1,5 +1,5 @@
 /**
- * Register Page
+ * Register Page - Modern Tech Design
  */
 
 import { useState, useEffect } from 'react';
@@ -12,11 +12,25 @@ import {
   Typography,
   Alert,
   Box,
+  useTheme,
+  alpha,
+  Stack,
+  LinearProgress,
 } from '@mui/material';
+import BoltIcon from '@mui/icons-material/Bolt';
+import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
 import { useAuthStore } from '../../store/authStore';
+import { keyframes } from '@mui/system';
+
+const float = keyframes`
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
+`;
 
 export default function Register() {
   const navigate = useNavigate();
+  const theme = useTheme();
   const { register, isAuthenticated, error, isLoading, clearError } = useAuthStore();
 
   const [email, setEmail] = useState('');
@@ -66,60 +80,81 @@ export default function Register() {
         minHeight: '100vh',
         display: 'flex',
         alignItems: 'center',
-        background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)',
         position: 'relative',
         overflow: 'hidden',
-        '&::before': {
-          content: '""',
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'radial-gradient(circle at 20% 50%, rgba(99, 102, 241, 0.1) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.1) 0%, transparent 50%)',
-          pointerEvents: 'none',
-        },
+        bgcolor: 'background.default',
       }}
     >
+      {/* Dynamic Background */}
+      <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 }}>
+        <Box sx={{
+          position: 'absolute',
+          bottom: '-20%',
+          right: '-10%',
+          width: '600px',
+          height: '600px',
+          background: `radial-gradient(circle, ${alpha(theme.palette.primary.dark, 0.2)} 0%, transparent 70%)`,
+          filter: 'blur(80px)',
+          animation: `${float} 10s ease-in-out infinite`,
+        }} />
+        <Box sx={{
+          position: 'absolute',
+          top: '-20%',
+          left: '-10%',
+          width: '600px',
+          height: '600px',
+          background: `radial-gradient(circle, ${alpha(theme.palette.secondary.dark, 0.2)} 0%, transparent 70%)`,
+          filter: 'blur(80px)',
+          animation: `${float} 12s ease-in-out infinite reverse`,
+        }} />
+        <Box sx={{
+          position: 'absolute',
+          top: 0, left: 0, right: 0, bottom: 0,
+          backgroundImage: 'linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px)',
+          backgroundSize: '50px 50px',
+          maskImage: 'linear-gradient(to bottom, black 40%, transparent 100%)',
+        }} />
+      </Box>
+
       <Container maxWidth="sm" sx={{ position: 'relative', zIndex: 1 }}>
         <Paper
-          elevation={0}
+          elevation={24}
           sx={{
             p: { xs: 4, md: 6 },
-            borderRadius: 4,
-            background: 'rgba(30, 41, 59, 0.8)',
+            borderRadius: '24px',
+            background: alpha(theme.palette.background.paper, 0.6),
             backdropFilter: 'blur(20px)',
-            border: '1px solid rgba(148, 163, 184, 0.1)',
-            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+            border: `1px solid ${alpha(theme.palette.common.white, 0.05)}`,
+            boxShadow: `0 20px 60px ${alpha(theme.palette.common.black, 0.5)}`,
           }}
         >
           <Box sx={{ textAlign: 'center', mb: 4 }}>
+            <Stack direction="row" spacing={1} justifyContent="center" alignItems="center" sx={{ mb: 3 }}>
+              <Box sx={{ p: 1, borderRadius: 2, bgcolor: alpha(theme.palette.secondary.main, 0.1), color: 'secondary.main' }}>
+                <BoltIcon fontSize="large" />
+              </Box>
+            </Stack>
+
+            <Typography variant="overline" sx={{ color: 'primary.main', fontWeight: 'bold', letterSpacing: 2 }}>
+              Join the Network
+            </Typography>
             <Typography
-              variant="h3"
-              component="h1"
+              variant="h4"
               gutterBottom
-              sx={{
-                fontWeight: 800,
-                mb: 1,
-                background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-              }}
+              sx={{ fontWeight: 700, color: 'common.white', mt: 1 }}
             >
               Create Account
             </Typography>
             <Typography
               variant="body1"
-              color="text.secondary"
-              sx={{ fontSize: '1rem' }}
+              sx={{ color: 'text.secondary' }}
             >
-              Start your free trial today
+              Start your 14-day Pro trial instantly
             </Typography>
           </Box>
 
           {(error || localError) && (
-            <Alert severity="error" sx={{ mb: 2 }} onClose={() => { clearError(); setLocalError(null); }}>
+            <Alert severity="error" sx={{ mb: 3 }} onClose={() => { clearError(); setLocalError(null); }}>
               {error || localError}
             </Alert>
           )}
@@ -132,6 +167,7 @@ export default function Register() {
               onChange={(e) => setFullName(e.target.value)}
               margin="normal"
               autoComplete="name"
+              variant="outlined"
             />
             <TextField
               fullWidth
@@ -143,6 +179,7 @@ export default function Register() {
               margin="normal"
               autoComplete="email"
               autoFocus
+              variant="outlined"
             />
             <TextField
               fullWidth
@@ -165,18 +202,42 @@ export default function Register() {
               margin="normal"
               autoComplete="new-password"
             />
+
             <Button
               type="submit"
               fullWidth
               variant="contained"
-              sx={{ mt: 3, mb: 2 }}
+              size="large"
+              sx={{
+                mt: 4,
+                mb: 3,
+                py: 1.5,
+                fontSize: '1rem',
+                background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                color: 'common.white',
+                fontWeight: 600,
+                boxShadow: `0 0 20px ${alpha(theme.palette.primary.main, 0.3)}`,
+                '&:hover': {
+                  boxShadow: `0 0 30px ${alpha(theme.palette.primary.main, 0.5)}`,
+                }
+              }}
               disabled={isLoading}
             >
-              {isLoading ? 'Creating account...' : 'Create Account'}
+              {isLoading ? 'Creating Account...' : 'Initialize Account'}
             </Button>
-            <Typography variant="body2" align="center" sx={{ mt: 2 }}>
-              Already have an account? <Link to="/login">Sign in</Link>
-            </Typography>
+
+            <Stack spacing={1} alignItems="center">
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'success.main' }}>
+                <VerifiedUserIcon fontSize="small" />
+                <Typography variant="caption">Bank-grade encryption</Typography>
+              </Box>
+              <Typography variant="body1" align="center" sx={{ color: 'text.secondary' }}>
+                Already registered?{' '}
+                <Link to="/login" style={{ color: theme.palette.primary.main, textDecoration: 'none', fontWeight: 600 }}>
+                  Log In
+                </Link>
+              </Typography>
+            </Stack>
           </Box>
         </Paper>
       </Container>

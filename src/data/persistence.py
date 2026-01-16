@@ -85,6 +85,33 @@ class DatabaseManager:
             raise
         finally:
             session.close()
+            
+    def execute_query(self, query: str, params: dict = None):
+        """
+        Execute raw SQL query.
+        
+        Args:
+            query: SQL query string with :named parameters
+            params: Dict of named parameters (e.g., {"user_id": "123"})
+            
+        Returns:
+            List of dicts for SELECT, None for others
+        """
+        with self.get_session() as session:
+            # Handle text query
+            stmt = text(query)
+            
+            # Execute with named parameters
+            result = session.execute(stmt, params or {})
+            
+            # Try to fetch results if available
+            try:
+                if result.returns_rows:
+                    return [dict(row._mapping) for row in result]
+            except Exception:
+                pass
+            
+            return None
     
     # ============ ASSET METADATA ============
     

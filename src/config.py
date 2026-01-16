@@ -18,13 +18,13 @@ class Settings(BaseSettings):
     """
     
     # ============ API KEYS ============
-    ALPHA_VANTAGE_KEY: str = Field(
-        default="demo",
-        description="Alpha Vantage API key"
+    ALPHA_VANTAGE_KEY: Optional[str] = Field(
+        default=None,
+        description="Alpha Vantage API key (User provided)"
     )
-    OPENAI_API_KEY: str = Field(
-        default="",
-        description="OpenAI API key"
+    OPENAI_API_KEY: Optional[str] = Field(
+        default=None,
+        description="OpenAI API key (User provided)"
     )
     FMP_API_KEY: Optional[str] = Field(
         default=None,
@@ -139,6 +139,12 @@ class Settings(BaseSettings):
     EMAIL_FROM_NAME: str = Field(
         default="Trading Signals Pro",
         description="From name"
+    )
+
+    # ============ SECURITY ============
+    SECRET_KEY: str = Field(
+        default="dev-secret-key-change-in-production-123",
+        description="Flask secret key for session signing"
     )
     
     # ============ PATHS ============

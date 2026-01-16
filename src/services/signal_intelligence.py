@@ -37,7 +37,7 @@ import hashlib
 import json
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Tuple
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from enum import Enum
 import aiohttp
 import numpy as np
@@ -239,7 +239,7 @@ class TechnicalSignalProvider(SignalProvider):
             
             # Cache results
             await self._set_cached(symbol, "technical", 
-                                   {"signals": [asdict(s) for s in signals]}, 
+                                   {"signals": [s.to_dict() for s in signals]}, 
                                    ttl=300)  # 5 min cache
             
         except Exception as e:

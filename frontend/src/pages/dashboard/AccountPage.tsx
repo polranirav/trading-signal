@@ -207,7 +207,7 @@ export default function AccountPage() {
                     Limits
                   </Typography>
                   <Typography variant="body1" sx={{ mt: 1 }}>
-                    {subscription.limits.max_signals_per_day} signals/day
+                    {subscription.limits?.max_signals_per_day ?? 'Unlimited'} signals/day
                   </Typography>
                 </Grid>
               </Grid>
