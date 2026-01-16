@@ -6,10 +6,11 @@
  * - Import from CSV
  * - Add stocks manually
  * - AI-powered signals for holdings
+ * - Risk management metrics
  */
 
 import { useState } from 'react'
-import { Box, Typography, Grid, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton, Alert } from '@mui/material'
+import { Box, Typography, Grid, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton, Alert, Tooltip } from '@mui/material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import AddIcon from '@mui/icons-material/Add'
 import UploadFileIcon from '@mui/icons-material/UploadFile'
@@ -18,10 +19,17 @@ import TrendingDownIcon from '@mui/icons-material/TrendingDown'
 import DeleteIcon from '@mui/icons-material/Delete'
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet'
 import PeopleIcon from '@mui/icons-material/People'
+import HistoryIcon from '@mui/icons-material/History'
+import ShowChartIcon from '@mui/icons-material/ShowChart'
+import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive'
 import apiClient from '../../services/api'
 import MetricCard from '../../components/MetricCard'
 import { SectionCard, SignalBadge } from '../../components/SignalComponents'
 import ImportPortfolioModal from '../../components/ImportPortfolioModal'
+import { RiskManagementPanel } from '../../components/RiskManagementPanel'
+import { LiveMarketHeader } from '../../components/LiveMarketHeader'
+import { CorrelationHeatmap } from '../../components/CorrelationHeatmap'
+import { usePortfolio } from '../../context'
 import '../../styles/premium.css'
 
 // API extension for portfolio
@@ -31,6 +39,11 @@ const portfolioApi = {
     addHolding: (data: any) => apiClient.post('/portfolio/add', data).then((r: any) => r.data),
     deleteHolding: (id: string) => apiClient.delete(`/portfolio/${id}`).then((r: any) => r.data),
     importCSV: (csvContent: string) => apiClient.post('/portfolio/import', { csv_content: csvContent }).then((r: any) => r.data),
+    // Transaction endpoints
+    getTransactions: (symbol?: string) => apiClient.get('/portfolio/transactions', { params: { symbol } }).then((r: any) => r.data),
+    getTimeline: () => apiClient.get('/portfolio/transactions/timeline').then((r: any) => r.data),
+    importTransactions: (csvContent: string) => apiClient.post('/portfolio/transactions/import', { csv_content: csvContent }).then((r: any) => r.data),
+    addTransaction: (data: any) => apiClient.post('/portfolio/transactions/add', data).then((r: any) => r.data),
 }
 
 // Add Holding Modal
@@ -187,12 +200,115 @@ MSFT,75,320.00`
     )
 }
 
+// Import Transactions Modal - for full trading history
+function ImportTransactionsModal({ open, onClose, onSuccess }: { open: boolean; onClose: () => void; onSuccess: () => void }) {
+    const [csvContent, setCsvContent] = useState('')
+    const [result, setResult] = useState<any>(null)
+    const [error, setError] = useState('')
+
+    const queryClient = useQueryClient()
+
+    const mutation = useMutation({
+        mutationFn: portfolioApi.importTransactions,
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: ['portfolio'] })
+            queryClient.invalidateQueries({ queryKey: ['transactions'] })
+            setResult(data)
+            onSuccess()
+        },
+        onError: (err: any) => {
+            setError(err.response?.data?.error || 'Failed to import transactions')
+        }
+    })
+
+    const handleImport = () => {
+        if (!csvContent.trim()) {
+            setError('Please paste transaction CSV content')
+            return
+        }
+        mutation.mutate(csvContent)
+    }
+
+    const sampleCSV = `Symbol,Type,Date,Shares,Price,Notes
+AAPL,BUY,2024-01-15,100,185.50,Initial purchase
+AAPL,SELL,2024-06-20,50,195.25,Taking profits
+NVDA,BUY,2024-02-01,25,650.00,AI play
+MSFT,BUY,2024-03-10,30,410.00,
+AAPL,DIVIDEND,2024-02-15,100,0.24,Q1 Dividend`
+
+    return (
+        <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+            <DialogTitle sx={{ background: 'linear-gradient(135deg, #0a0b14, #1a1b2e)', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <HistoryIcon sx={{ color: '#f59e0b' }} />
+                    Import Transaction History
+                </Box>
+            </DialogTitle>
+            <DialogContent sx={{ background: '#0a0b14', pt: 3 }}>
+                {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+                {result && (
+                    <Alert severity="success" sx={{ mb: 2 }}>
+                        <strong>Success!</strong> Imported {result.imported?.length || 0} transactions.
+                        {result.errors?.length > 0 && ` (${result.errors.length} errors)`}
+                        <br />
+                        Your holdings have been automatically recalculated.
+                    </Alert>
+                )}
+
+                <Alert severity="info" sx={{ mb: 2, background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
+                    <Typography sx={{ color: '#e2e8f0' }}>
+                        <strong>Import your complete trading history!</strong> Include all your BUY, SELL, and DIVIDEND transactions.
+                        This enables P&L tracking and AI-powered lessons from your trades.
+                    </Typography>
+                </Alert>
+
+                <Typography sx={{ mb: 2, color: '#94a3b8', fontSize: '0.9rem' }}>
+                    Required columns: <strong>Symbol, Type, Date, Shares, Price</strong>
+                </Typography>
+
+                <TextField
+                    fullWidth
+                    multiline
+                    rows={10}
+                    value={csvContent}
+                    onChange={(e) => setCsvContent(e.target.value)}
+                    placeholder={sampleCSV}
+                    sx={{ fontFamily: 'monospace', '& .MuiInputBase-input': { fontSize: '0.85rem' } }}
+                />
+
+                <Box sx={{ mt: 2, p: 2, background: 'rgba(0,0,0,0.3)', borderRadius: 1 }}>
+                    <Typography sx={{ color: '#64748b', fontSize: '0.8rem', mb: 1 }}>Sample format:</Typography>
+                    <pre style={{ color: '#94a3b8', margin: 0, fontSize: '0.75rem', overflowX: 'auto' }}>
+                        {sampleCSV}
+                    </pre>
+                </Box>
+
+                <Typography sx={{ mt: 2, color: '#64748b', fontSize: '0.75rem' }}>
+                    <strong>Supported Type values:</strong> BUY, SELL, DIVIDEND (or B, S, D)<br />
+                    <strong>Date formats:</strong> YYYY-MM-DD, MM/DD/YYYY, DD/MM/YYYY
+                </Typography>
+            </DialogContent>
+            <DialogActions sx={{ background: '#0a0b14', p: 2, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                <Button onClick={onClose} color="inherit">Cancel</Button>
+                <Button onClick={handleImport} variant="contained" disabled={mutation.isPending}
+                    sx={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}>
+                    {mutation.isPending ? 'Importing...' : 'Import Transactions'}
+                </Button>
+            </DialogActions>
+        </Dialog>
+    )
+}
+
 export default function PortfolioPage() {
     const [addModalOpen, setAddModalOpen] = useState(false)
     const [importModalOpen, setImportModalOpen] = useState(false)
+    const [importTransactionsModalOpen, setImportTransactionsModalOpen] = useState(false)
     const [importFamousModalOpen, setImportFamousModalOpen] = useState(false)
 
     const queryClient = useQueryClient()
+
+    // Portfolio context - to refresh global state after imports
+    const { refreshPortfolio } = usePortfolio()
 
     const { data: portfolioData, isLoading, error } = useQuery({
         queryKey: ['portfolio', 'summary'],
@@ -220,6 +336,11 @@ export default function PortfolioPage() {
 
     return (
         <Box className="fade-in">
+            {/* Live Market Data Header */}
+            <Box sx={{ mx: -3, mt: -3, mb: 3 }}>
+                <LiveMarketHeader />
+            </Box>
+
             {/* Header */}
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
                 <Box>
@@ -243,8 +364,20 @@ export default function PortfolioPage() {
                     >
                         Import Famous Portfolio
                     </Button>
+                    <Button
+                        variant="outlined"
+                        startIcon={<HistoryIcon />}
+                        onClick={() => setImportTransactionsModalOpen(true)}
+                        sx={{
+                            borderColor: '#f59e0b',
+                            color: '#f59e0b',
+                            '&:hover': { borderColor: '#d97706', background: 'rgba(245, 158, 11, 0.1)' }
+                        }}
+                    >
+                        Import Transactions
+                    </Button>
                     <Button variant="outlined" startIcon={<UploadFileIcon />} onClick={() => setImportModalOpen(true)}>
-                        Import CSV
+                        Import Holdings
                     </Button>
                     <Button variant="contained" startIcon={<AddIcon />} onClick={() => setAddModalOpen(true)}>
                         Add Stock
@@ -348,13 +481,46 @@ export default function PortfolioPage() {
                                                 </Box>
                                             </TableCell>
                                             <TableCell align="center">
-                                                <SignalBadge type={signal?.signal_type || 'HOLD'} />
+                                                <Tooltip
+                                                    title={
+                                                        <Box sx={{ p: 0.5 }}>
+                                                            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+                                                                {signal?.signal_type || 'HOLD'} ({(signal?.confluence_score ? signal.confluence_score * 100 : 0).toFixed(0)}% Conf.)
+                                                            </Typography>
+                                                            <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
+                                                                {signal?.rationale || 'No rationale available'}
+                                                            </Typography>
+                                                        </Box>
+                                                    }
+                                                    arrow
+                                                >
+                                                    <Box sx={{ display: 'inline-block', cursor: 'help' }}>
+                                                        <SignalBadge type={signal?.signal_type || 'HOLD'} />
+                                                    </Box>
+                                                </Tooltip>
                                             </TableCell>
                                             <TableCell align="center">
                                                 <IconButton
                                                     size="small"
+                                                    sx={{ color: '#60a5fa', mr: 1 }}
+                                                    onClick={() => window.location.href = `/dashboard/charts?symbol=${holding.symbol}`}
+                                                    title="View Chart"
+                                                >
+                                                    <ShowChartIcon fontSize="small" />
+                                                </IconButton>
+                                                <IconButton
+                                                    size="small"
+                                                    sx={{ color: '#f59e0b', mr: 1 }}
+                                                    onClick={() => window.location.href = `/dashboard/alerts?symbol=${holding.symbol}`}
+                                                    title="Set Alert"
+                                                >
+                                                    <NotificationsActiveIcon fontSize="small" />
+                                                </IconButton>
+                                                <IconButton
+                                                    size="small"
                                                     sx={{ color: '#ef4444' }}
                                                     onClick={() => deleteMutation.mutate(holding.id)}
+                                                    title="Remove Holding"
                                                 >
                                                     <DeleteIcon fontSize="small" />
                                                 </IconButton>
@@ -368,21 +534,53 @@ export default function PortfolioPage() {
                 )}
             </SectionCard>
 
+            {/* Risk Management Panel */}
+            {holdings.length > 0 && (
+                <RiskManagementPanel
+                    metrics={{
+                        total_value: summary.total_current_value,
+                        holdings: holdings.map((h: any) => ({
+                            symbol: h.symbol,
+                            shares: h.shares,
+                            avg_cost: h.avg_cost,
+                            current_price: h.current_price || h.avg_cost,
+                            pnl: h.pnl || 0,
+                            pnl_pct: h.pnl_pct || 0,
+                        }))
+                    }}
+                />
+            )}
+
+            {/* Correlation Analysis */}
+            {holdings.length >= 2 && (
+                <Box sx={{ mt: 3 }}>
+                    <CorrelationHeatmap symbols={holdings.map((h: any) => h.symbol)} />
+                </Box>
+            )}
+
             {/* Modals */}
             <AddHoldingModal
                 open={addModalOpen}
                 onClose={() => setAddModalOpen(false)}
-                onSuccess={() => { }}
+                onSuccess={() => { refreshPortfolio() }}
             />
             <ImportCSVModal
                 open={importModalOpen}
                 onClose={() => setImportModalOpen(false)}
-                onSuccess={() => { }}
+                onSuccess={() => { refreshPortfolio() }}
+            />
+            <ImportTransactionsModal
+                open={importTransactionsModalOpen}
+                onClose={() => setImportTransactionsModalOpen(false)}
+                onSuccess={() => { refreshPortfolio() }}
             />
             <ImportPortfolioModal
                 open={importFamousModalOpen}
                 onClose={() => setImportFamousModalOpen(false)}
-                onSuccess={() => queryClient.invalidateQueries({ queryKey: ['portfolio'] })}
+                onSuccess={() => {
+                    queryClient.invalidateQueries({ queryKey: ['portfolio'] })
+                    refreshPortfolio() // Refresh global portfolio context
+                }}
             />
         </Box>
     )

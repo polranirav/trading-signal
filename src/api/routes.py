@@ -12,6 +12,8 @@ from src.api.account import account_bp
 from src.api.subscriptions import subscriptions_bp
 from src.api.public import public_bp
 from src.api.portfolio import portfolio_bp
+from src.api.signal_intelligence import signal_intelligence_bp
+from src.api.user_api_keys import user_api_keys_bp
 
 # Import admin blueprint
 try:
@@ -37,6 +39,8 @@ api_bp.register_blueprint(signals_bp)
 api_bp.register_blueprint(account_bp)
 api_bp.register_blueprint(subscriptions_bp)
 api_bp.register_blueprint(portfolio_bp)
+api_bp.register_blueprint(signal_intelligence_bp)
+api_bp.register_blueprint(user_api_keys_bp)
 
 # Register admin blueprint if available
 if ADMIN_AVAILABLE:

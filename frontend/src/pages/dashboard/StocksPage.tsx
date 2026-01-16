@@ -1,13 +1,17 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { Box, Typography, Grid, TextField, Select, MenuItem, InputLabel, FormControl, Button, InputAdornment } from '@mui/material'
 import { useQuery } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
 import SearchIcon from '@mui/icons-material/Search'
 import TrendingUpIcon from '@mui/icons-material/TrendingUp'
 import TrendingDownIcon from '@mui/icons-material/TrendingDown'
 import BoltIcon from '@mui/icons-material/Bolt'
 import FilterListIcon from '@mui/icons-material/FilterList'
+import AnalyticsIcon from '@mui/icons-material/Analytics'
+import RocketLaunchIcon from '@mui/icons-material/RocketLaunch'
 import { api } from '../../services/api'
 import { SectionCard, SignalBadge, ConfidenceBar } from '../../components/SignalComponents'
+import { usePortfolio } from '../../context'
 import '../../styles/premium.css'
 
 // Stock Card Component
@@ -35,7 +39,7 @@ function StockCard({ symbol, name, price = 0, change = 0, aiScore = 0.5, signal 
     }
 
     return (
-        <Box className="glass-card" sx={{ p: 2.5, height: '100%' }}>
+        <Box className="glass-card" sx={{ p: 2.5, height: '100%', display: 'flex', flexDirection: 'column' }}>
             {/* Header */}
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5 }}>
                 <Box>
@@ -90,14 +94,8 @@ function StockCard({ symbol, name, price = 0, change = 0, aiScore = 0.5, signal 
                 </Box>
             </Box>
 
-            {/* Footer */}
-            <Box sx={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                pt: 1.5,
-                borderTop: '1px solid rgba(255,255,255,0.05)'
-            }}>
+            {/* Sector Tag */}
+            <Box sx={{ mb: 1.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Typography sx={{ fontSize: '0.8rem', color: '#64748b' }}>Vol: {volume}</Typography>
                 <Box sx={{
                     background: `${sectorColors[sector] || '#64748b'}20`,
@@ -109,6 +107,26 @@ function StockCard({ symbol, name, price = 0, change = 0, aiScore = 0.5, signal 
                 }}>
                     {sector?.slice(0, 10)}
                 </Box>
+            </Box>
+
+            {/* Analyze Button - navigates to Charts page */}
+            <Box sx={{ mt: 'auto', pt: 1.5, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                <Button
+                    component={Link}
+                    to={`/dashboard/charts?symbol=${symbol}`}
+                    fullWidth
+                    variant="contained"
+                    size="small"
+                    startIcon={<AnalyticsIcon />}
+                    sx={{
+                        background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
+                        fontSize: '0.85rem',
+                        fontWeight: 600,
+                        '&:hover': { opacity: 0.9 }
+                    }}
+                >
+                    Analyze
+                </Button>
             </Box>
         </Box>
     )
@@ -144,6 +162,12 @@ function MoverItem({ symbol, price, change, onClick }: MoverItemProps) {
 }
 
 export default function StocksPage() {
+    // Portfolio context - used to indicate which stocks user already owns
+    const { isInPortfolio } = usePortfolio()
+
+    // This page is ALWAYS for discovery - showing ALL market stocks
+    // Users come here to find NEW investment opportunities
+
     const [searchTerm, setSearchTerm] = useState('')
     const [signalFilter, setSignalFilter] = useState('')
     const [sectorFilter, setSectorFilter] = useState('')
@@ -154,10 +178,11 @@ export default function StocksPage() {
         queryFn: () => api.getSignals({ limit: 50 }),
     })
 
-    const signals = signalsData?.signals || []
+    // Always show ALL signals - this is the discovery page
+    const allSignals = signalsData?.signals || []
 
-    // Generate mock stock data from signals
-    const stocks = signals.map((s: any) => ({
+    // Generate stock data from all signals
+    const stocks = allSignals.map((s: any) => ({
         symbol: s.symbol,
         name: s.symbol,
         price: s.price_at_signal || Math.random() * 500 + 50,
@@ -165,7 +190,8 @@ export default function StocksPage() {
         aiScore: s.confluence_score || 0.5,
         signal: s.signal_type || 'HOLD',
         volume: `${(Math.random() * 10).toFixed(1)}M`,
-        sector: ['Technology', 'Healthcare', 'Financial', 'Consumer', 'Energy'][Math.floor(Math.random() * 5)]
+        sector: ['Technology', 'Healthcare', 'Financial', 'Consumer', 'Energy'][Math.floor(Math.random() * 5)],
+        inPortfolio: isInPortfolio(s.symbol),
     }))
 
     // Get top gainers/losers
@@ -201,13 +227,16 @@ export default function StocksPage() {
     return (
         <Box className="fade-in">
             {/* Header */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3, flexWrap: 'wrap', gap: 2 }}>
                 <Box>
-                    <Typography variant="h4" sx={{ fontWeight: 700, color: '#fff', fontSize: '1.75rem', mb: 0.5 }}>
-                        Stock Discovery
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                        <RocketLaunchIcon sx={{ color: '#f59e0b' }} />
+                        <Typography variant="h4" sx={{ fontWeight: 700, color: '#fff', fontSize: '1.75rem' }}>
+                            Stock Discovery
+                        </Typography>
+                    </Box>
                     <Typography sx={{ color: '#64748b', fontSize: '0.9rem' }}>
-                        Find high-confidence trading opportunities with AI-powered signals
+                        Find your next investment opportunity with AI-powered signals
                     </Typography>
                 </Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>

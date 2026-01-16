@@ -13,16 +13,15 @@ import {
 } from '@mui/material'
 import MenuIcon from '@mui/icons-material/Menu'
 import DashboardIcon from '@mui/icons-material/Dashboard'
-import AnalyticsIcon from '@mui/icons-material/Analytics'
 import HistoryIcon from '@mui/icons-material/History'
 import TrendingUpIcon from '@mui/icons-material/TrendingUp'
 import PersonIcon from '@mui/icons-material/Person'
-import CodeIcon from '@mui/icons-material/Code'
 import LogoutIcon from '@mui/icons-material/Logout'
 import ShowChartIcon from '@mui/icons-material/ShowChart'
 import BarChartIcon from '@mui/icons-material/BarChart'
 import SpeedIcon from '@mui/icons-material/Speed'
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet'
+import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive'
 import { useState } from 'react'
 import { useAuthStore } from '../../store/authStore'
 import TickerBar from '../TickerBar'
@@ -33,9 +32,9 @@ const drawerWidth = 260
 const menuItems = [
   { text: 'My Portfolio', icon: <AccountBalanceWalletIcon />, path: '/dashboard' },
   { text: 'Market Overview', icon: <DashboardIcon />, path: '/dashboard/overview' },
-  { text: 'Analysis', icon: <AnalyticsIcon />, path: '/dashboard/analysis' },
   { text: 'Stocks', icon: <TrendingUpIcon />, path: '/dashboard/stocks' },
   { text: 'Charts', icon: <ShowChartIcon />, path: '/dashboard/charts' },
+  { text: 'Alerts', icon: <NotificationsActiveIcon />, path: '/dashboard/alerts' },
   { text: 'History', icon: <HistoryIcon />, path: '/dashboard/history' },
   { text: 'Performance', icon: <BarChartIcon />, path: '/dashboard/performance' },
   { text: 'Backtest', icon: <SpeedIcon />, path: '/dashboard/backtest' },

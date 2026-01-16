@@ -35,6 +35,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { format } from 'date-fns';
+import DataSourcesApiKeys from '../../components/account/DataSourcesApiKeys';
 
 export default function AccountPage() {
   const { user } = useAuthStore();
@@ -278,6 +279,13 @@ export default function AccountPage() {
           ) : (
             <Typography color="text.secondary">No API keys found</Typography>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Data Source API Keys - External Services */}
+      <Card sx={{ mb: 4 }}>
+        <CardContent>
+          <DataSourcesApiKeys />
         </CardContent>
       </Card>
 

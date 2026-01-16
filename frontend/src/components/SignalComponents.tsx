@@ -3,7 +3,7 @@ import { Box, Typography } from '@mui/material'
 import '../styles/premium.css'
 
 interface SignalBadgeProps {
-    type: 'BUY' | 'SELL' | 'HOLD' | 'STRONG_BUY' | 'STRONG_SELL' | string
+    type: 'BUY' | 'SELL' | 'HOLD' | 'STRONG_BUY' | 'STRONG_SELL' | 'TAKE_PROFIT' | 'REVIEW' | 'STOP_LOSS' | string
 }
 
 export function SignalBadge({ type }: SignalBadgeProps) {
@@ -11,6 +11,9 @@ export function SignalBadge({ type }: SignalBadgeProps) {
         const upperType = type.toUpperCase()
         if (upperType.includes('STRONG_BUY') || upperType === 'BUY') return 'buy'
         if (upperType.includes('STRONG_SELL') || upperType === 'SELL') return 'sell'
+        if (upperType === 'TAKE_PROFIT') return 'take-profit'
+        if (upperType === 'REVIEW') return 'review'
+        if (upperType === 'STOP_LOSS') return 'stop-loss'
         return 'hold'
     }
 

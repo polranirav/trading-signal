@@ -51,7 +51,7 @@ apiClient.interceptors.response.use(
         }
       });
     }
-    
+
     // Handle common errors
     if (error.response?.status === 401) {
       // Unauthorized - clear auth state
@@ -110,4 +110,45 @@ export const api = {
   // Account
   account: accountService,
   subscription: subscriptionService,
+
+  // Signal Intelligence
+  async getSignalIntelligence(symbol: string, options?: { categories?: string[]; include_details?: boolean }) {
+    const params = new URLSearchParams();
+    if (options?.categories) {
+      params.set('categories', options.categories.join(','));
+    }
+    if (options?.include_details !== undefined) {
+      params.set('include_details', String(options.include_details));
+    }
+    const queryString = params.toString();
+    const url = `/signal-intelligence/${symbol}${queryString ? `?${queryString}` : ''}`;
+    const response = await apiClient.get(url);
+    return response.data?.data;
+  },
+
+  async getSignalCategory(symbol: string, category: string) {
+    const response = await apiClient.get(`/signal-intelligence/${symbol}/category/${category}`);
+    return response.data?.data;
+  },
+
+  // User API Keys (External Data Sources)
+  async getUserApiKeys() {
+    const response = await apiClient.get('/user-api-keys');
+    return response.data?.data;
+  },
+
+  async saveUserApiKey(service: string, apiKey: string) {
+    const response = await apiClient.post(`/user-api-keys/${service}`, { api_key: apiKey });
+    return response.data;
+  },
+
+  async deleteUserApiKey(service: string) {
+    const response = await apiClient.delete(`/user-api-keys/${service}`);
+    return response.data;
+  },
+
+  async testUserApiKey(service: string) {
+    const response = await apiClient.post(`/user-api-keys/${service}/test`);
+    return response.data?.data;
+  },
 };

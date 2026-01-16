@@ -490,6 +490,182 @@ If data suggests conflicting signals, acknowledge the uncertainty.
 """
 
 
+    def analyze_trading_history(
+        self,
+        transactions: List[Dict],
+        summary_by_symbol: Dict,
+        total_realized_pnl: float
+    ) -> str:
+        """
+        Analyze user's trading history and generate personalized lessons learned.
+        
+        This is the core of the "Lessons from My Trades" feature.
+        
+        Args:
+            transactions: List of transactions with pnl data from timeline endpoint
+            summary_by_symbol: Dict with symbol -> {current_shares, realized_pnl, avg_cost}
+            total_realized_pnl: Total realized P&L across all trades
+        
+        Returns:
+            Markdown-formatted lessons and insights
+        """
+        self._ensure_initialized()
+        
+        if not self.openai_enabled:
+            return self._generate_fallback_lessons(transactions, summary_by_symbol, total_realized_pnl)
+        
+        # Prepare transaction summary
+        symbols_traded = list(summary_by_symbol.keys())
+        winners = {s: d for s, d in summary_by_symbol.items() if d.get('realized_pnl', 0) > 0}
+        losers = {s: d for s, d in summary_by_symbol.items() if d.get('realized_pnl', 0) < 0}
+        
+        # Analyze trades
+        buy_count = len([t for t in transactions if t.get('transaction_type') == 'buy'])
+        sell_count = len([t for t in transactions if t.get('transaction_type') == 'sell'])
+        
+        # Calculate timing patterns
+        profitable_sells = [t for t in transactions if t.get('transaction_type') == 'sell' and (t.get('pnl') or 0) > 0]
+        losing_sells = [t for t in transactions if t.get('transaction_type') == 'sell' and (t.get('pnl') or 0) < 0]
+        
+        # Build context
+        context = f"""
+TRADING HISTORY SUMMARY:
+- Total Symbols Traded: {len(symbols_traded)}
+- Total Transactions: {len(transactions)}
+- Buy Transactions: {buy_count}
+- Sell Transactions: {sell_count}
+- Total Realized P&L: ${total_realized_pnl:,.2f}
+
+WINNERS (Profitable Trades):
+{self._format_positions(winners) if winners else "No profitable closed positions yet"}
+
+LOSERS (Unprofitable Trades):
+{self._format_positions(losers) if losers else "No losing closed positions yet"}
+
+WIN/LOSS STATISTICS:
+- Profitable Sells: {len(profitable_sells)}
+- Losing Sells: {len(losing_sells)}
+- Win Rate: {len(profitable_sells) / max(len(profitable_sells) + len(losing_sells), 1) * 100:.1f}%
+
+SAMPLE TRANSACTIONS (most recent):
+{self._format_transactions(transactions[:20])}
+"""
+
+        prompt = f"""You are a professional trading coach analyzing a personal trading history.
+Your goal is to provide honest, actionable lessons learned from this trading history.
+
+{context}
+
+Generate a comprehensive "Lessons Learned" report with the following sections:
+
+# 📚 Lessons From My Trades
+
+## 🎯 Executive Summary
+(2-3 sentences summarizing overall trading performance and the key takeaway)
+
+## ✅ What Went Right
+(Bullet points of positive patterns observed - timing, position sizing, sector selection, etc.)
+
+## ❌ What Went Wrong
+(Bullet points of mistakes identified - selling too early/late, chasing losses, etc.)
+
+## 📊 Pattern Analysis
+- Trading frequency assessment
+- Position sizing patterns
+- Timing patterns (holding period analysis)
+- Sector/Symbol concentration
+
+## 💡 Actionable Recommendations
+(Specific, numbered recommendations for improvement)
+1. ...
+2. ...
+3. ...
+
+## 🎓 Key Lesson
+(Single most important lesson from this trading history - make it personal and memorable)
+
+Be specific. Reference actual symbols and trades when possible.
+Be honest but constructive - the goal is to help the trader improve.
+If there's limited data, acknowledge it and provide general guidance.
+"""
+
+        try:
+            response = self.client.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": "You are an experienced trading coach and behavioral finance expert. You analyze trading patterns and provide constructive feedback to help traders improve. Be specific, honest, and actionable."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.3,
+                max_tokens=2000
+            )
+            
+            report = response.choices[0].message.content
+            logger.info(f"Generated trading lessons, length: {len(report)}")
+            return report
+            
+        except Exception as e:
+            logger.error(f"Trading history analysis failed: {e}")
+            return self._generate_fallback_lessons(transactions, summary_by_symbol, total_realized_pnl)
+    
+    def _format_positions(self, positions: Dict) -> str:
+        """Format positions for prompt."""
+        lines = []
+        for symbol, data in positions.items():
+            pnl = data.get('realized_pnl', 0)
+            shares = data.get('current_shares', 0)
+            lines.append(f"- {symbol}: P&L ${pnl:,.2f}, Current Shares: {shares}")
+        return "\n".join(lines) if lines else "None"
+    
+    def _format_transactions(self, transactions: List[Dict]) -> str:
+        """Format recent transactions for prompt."""
+        lines = []
+        for t in transactions:
+            date = t.get('transaction_date', '')[:10] if t.get('transaction_date') else 'N/A'
+            pnl = t.get('pnl')
+            pnl_str = f", P&L: ${pnl:,.2f}" if pnl is not None else ""
+            lines.append(
+                f"- {date}: {t.get('transaction_type', '?').upper()} {t.get('symbol', '?')} "
+                f"{t.get('shares', 0)} shares @ ${t.get('price', 0):.2f}{pnl_str}"
+            )
+        return "\n".join(lines) if lines else "No transactions"
+    
+    def _generate_fallback_lessons(
+        self,
+        transactions: List[Dict],
+        summary_by_symbol: Dict,
+        total_realized_pnl: float
+    ) -> str:
+        """Generate basic lessons without GPT-4."""
+        
+        symbols = list(summary_by_symbol.keys())
+        winners = len([s for s, d in summary_by_symbol.items() if d.get('realized_pnl', 0) > 0])
+        losers = len([s for s, d in summary_by_symbol.items() if d.get('realized_pnl', 0) < 0])
+        
+        return f"""# 📚 Lessons From My Trades
+
+## Summary
+- Symbols Traded: {len(symbols)}
+- Total Transactions: {len(transactions)}
+- Realized P&L: ${total_realized_pnl:,.2f}
+
+## Performance
+- Winning Positions: {winners}
+- Losing Positions: {losers}
+- Win Rate: {winners / max(winners + losers, 1) * 100:.1f}%
+
+## Symbols Traded
+{', '.join(symbols) if symbols else 'None yet'}
+
+*Note: Full AI-powered analysis requires OpenAI API configuration.*
+
+To enable personalized trading lessons:
+1. Set your OPENAI_API_KEY in the .env file
+2. Restart the backend server
+3. Return to this page for detailed insights
+"""
+
+
 # Convenience function
 def get_rag_engine() -> RAGAnalysisEngine:
     """Get a RAGAnalysisEngine instance."""

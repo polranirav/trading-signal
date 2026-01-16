@@ -330,6 +330,24 @@
     border: 1px solid rgba(245, 158, 11, 0.3);
 }
 
+.signal-badge.take-profit {
+    background: rgba(6, 182, 212, 0.15);
+    color: #22d3ee;
+    border: 1px solid rgba(6, 182, 212, 0.3);
+}
+
+.signal-badge.review {
+    background: rgba(168, 85, 247, 0.15);
+    color: #c084fc;
+    border: 1px solid rgba(168, 85, 247, 0.3);
+}
+
+.signal-badge.stop-loss {
+    background: rgba(239, 68, 68, 0.25);
+    color: #fca5a5;
+    border: 1px solid rgba(239, 68, 68, 0.5);
+}
+
 /* ==========================================================================
    CONFIDENCE BAR
    ========================================================================== */

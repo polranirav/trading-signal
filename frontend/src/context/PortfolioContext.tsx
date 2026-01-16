@@ -89,16 +89,34 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
         setError(null);
 
         try {
-            // Fetch holdings
-            const holdingsResponse = await apiClient.get('/portfolio/holdings');
-            const holdingsData = holdingsResponse.data?.holdings || [];
+            // Fetch holdings and summary from /portfolio/summary endpoint
+            // This returns both holdings array and summary object
+            const response = await apiClient.get('/portfolio/summary');
 
-            // Fetch summary
-            const summaryResponse = await apiClient.get('/portfolio/summary');
-            const summaryData = summaryResponse.data || defaultSummary;
+            // Extract holdings and summary from response
+            const holdingsData = response.data?.holdings || [];
+            const summaryData = response.data?.summary || defaultSummary;
 
-            setHoldings(holdingsData);
-            setSummary(summaryData);
+            // Transform holdings to match our interface
+            const transformedHoldings: PortfolioHolding[] = holdingsData.map((h: any) => ({
+                id: h.id,
+                symbol: h.symbol,
+                shares: h.shares,
+                avg_cost: h.avg_cost,
+                current_price: h.current_price || h.avg_cost,
+                pnl: h.pnl || 0,
+                pnl_percent: h.pnl_pct || 0,
+                signal: h.signal,
+            }));
+
+            setHoldings(transformedHoldings);
+            setSummary({
+                total_value: summaryData.total_current_value || 0,
+                total_cost: summaryData.total_cost_basis || 0,
+                total_pnl: summaryData.total_pnl || 0,
+                total_pnl_percent: summaryData.total_pnl_pct || 0,
+                holdings_count: summaryData.total_holdings || transformedHoldings.length,
+            });
             setIsLoaded(true);
         } catch (err: any) {
             console.error('Error fetching portfolio:', err);

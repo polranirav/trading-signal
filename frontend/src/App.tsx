@@ -14,9 +14,7 @@ import Landing from './pages/marketing/Landing';
 import FeaturesPage from './pages/marketing/FeaturesPage';
 import PricingPage from './pages/marketing/PricingPage';
 import AboutPage from './pages/marketing/AboutPage';
-import Overview from './pages/dashboard/Overview';
 import OverviewPage from './pages/dashboard/OverviewPage';
-import AnalysisPage from './pages/dashboard/AnalysisPage';
 import HistoryPage from './pages/dashboard/HistoryPage';
 import PerformancePage from './pages/dashboard/PerformancePage';
 import AccountPage from './pages/dashboard/AccountPage';
@@ -24,6 +22,8 @@ import StocksPage from './pages/dashboard/StocksPage';
 import ChartsPage from './pages/dashboard/ChartsPage';
 import BacktestPage from './pages/dashboard/BacktestPage';
 import PortfolioPage from './pages/dashboard/PortfolioPage';
+import SignalIntelligencePage from './pages/dashboard/SignalIntelligencePage';
+import AlertsPage from './pages/dashboard/AlertsPage';
 
 // Admin Pages
 import AdminDashboard from './pages/admin/DashboardPage';
@@ -76,9 +76,10 @@ function App() {
       >
         <Route index element={<PortfolioPage />} />
         <Route path="overview" element={<OverviewPage />} />
-        <Route path="analysis" element={<AnalysisPage />} />
         <Route path="stocks" element={<StocksPage />} />
         <Route path="charts" element={<ChartsPage />} />
+        <Route path="signals" element={<SignalIntelligencePage />} />
+        <Route path="alerts" element={<AlertsPage />} />
         <Route path="history" element={<HistoryPage />} />
         <Route path="performance" element={<PerformancePage />} />
         <Route path="backtest" element={<BacktestPage />} />

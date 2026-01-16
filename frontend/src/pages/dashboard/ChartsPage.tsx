@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react'
-import { Box, Typography, Grid, TextField, Chip, Alert } from '@mui/material'
+import { Box, Typography, Grid, TextField, Chip } from '@mui/material'
 import { useQuery } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import SignalCellularAltIcon from '@mui/icons-material/SignalCellularAlt'
 import BarChartIcon from '@mui/icons-material/BarChart'
@@ -15,6 +15,7 @@ import { api } from '../../services/api'
 import { SectionCard, ConfidenceBar } from '../../components/SignalComponents'
 import CandlestickChart from '../../components/charts/CandlestickChart'
 import GhostCandleChart, { getPredictionLabels, calculatePredictedPrices } from '../../components/charts/GhostCandleChart'
+import { TechnicalIndicatorsPanel } from '../../components/TechnicalIndicatorsPanel'
 import { CandlestickData, Time } from 'lightweight-charts'
 import { usePortfolio } from '../../context'
 import '../../styles/premium.css'
@@ -31,10 +32,10 @@ const timeframes = [
     { label: '4H', value: '4H', interval: 14400, candleCount: 30, predictionLabel: 'Next 20 Hours' },
     { label: '1D', value: '1D', interval: 86400, candleCount: 30, predictionLabel: 'Next 5 Days' },
 ]
-
 export default function ChartsPage() {
     // Portfolio context
     const { portfolioSymbols, topHolding, hasPortfolio, isInPortfolio } = usePortfolio()
+    const [searchParams] = useSearchParams()
 
     // Quick access stocks - portfolio first, then defaults
     const quickStocks = useMemo(() => {
@@ -46,57 +47,118 @@ export default function ChartsPage() {
         return defaultQuickStocks
     }, [hasPortfolio, portfolioSymbols])
 
-    // Default to top holding if available
-    const defaultSymbol = topHolding?.symbol || 'AAPL'
+    // Determine initial symbol: URL param > Top Holding > 'AAPL'
+    const urlSymbol = searchParams.get('symbol')
+    const defaultSymbol = urlSymbol || topHolding?.symbol || 'AAPL'
 
     const [selectedSymbol, setSelectedSymbol] = useState(defaultSymbol)
     const [timeframe, setTimeframe] = useState('1H')
     const [searchSymbol, setSearchSymbol] = useState('')
 
-    // Update selected symbol when portfolio loads
+    // Update selected symbol when URL param changes
     useEffect(() => {
-        if (topHolding && selectedSymbol === 'AAPL' && topHolding.symbol !== 'AAPL') {
+        const symbolParam = searchParams.get('symbol')
+        if (symbolParam && symbolParam !== selectedSymbol) {
+            setSelectedSymbol(symbolParam)
+        }
+    }, [searchParams, selectedSymbol])
+
+    // Update selected symbol when portfolio loads IF no URL param was provided
+    useEffect(() => {
+        if (!urlSymbol && topHolding && selectedSymbol === 'AAPL' && topHolding.symbol !== 'AAPL') {
             setSelectedSymbol(topHolding.symbol)
         }
-    }, [topHolding, selectedSymbol])
+    }, [topHolding, selectedSymbol, urlSymbol])
 
     // Get current timeframe config
     const currentTimeframeConfig = timeframes.find(tf => tf.value === timeframe) || timeframes[3]
 
-    // Fetch signals
+    // Fetch signals - increased limit for more coverage
     const { data: signalsData, isError } = useQuery({
-        queryKey: ['signals', { limit: 50 }],
-        queryFn: () => api.getSignals({ limit: 50 }),
+        queryKey: ['signals', { limit: 100 }],
+        queryFn: () => api.getSignals({ limit: 100 }),
     })
 
     const signals = signalsData?.signals || []
-    const currentSignal = signals.find((s: any) => s.symbol === selectedSymbol) || signals[0]
+    const currentSignal = signals.find((s: any) => s.symbol === selectedSymbol)
 
-    // Mock live data
+    // Mock live data - based on current signal
     const liveData = useMemo(() => {
         const basePrice = currentSignal?.price_at_signal || 178.50
+        const signalType = currentSignal?.signal_type || 'HOLD'
+        const isPositive = signalType.includes('BUY')
+
         return {
             price: basePrice,
-            change: '+1.25%',
-            changePercent: 1.25,
-            high: basePrice * 1.02,
-            low: basePrice * 0.98,
-            volume: '45.2M',
-            trend: 'Bullish',
+            change: isPositive ? `+${(Math.random() * 2 + 0.5).toFixed(2)}%` : `-${(Math.random() * 1.5 + 0.3).toFixed(2)}%`,
+            changePercent: isPositive ? Math.random() * 2 + 0.5 : -(Math.random() * 1.5 + 0.3),
+            high: basePrice * (1 + Math.random() * 0.025),
+            low: basePrice * (1 - Math.random() * 0.02),
+            volume: `${(Math.random() * 50 + 20).toFixed(1)}M`,
+            trend: isPositive ? 'Bullish' : signalType.includes('SELL') ? 'Bearish' : 'Neutral',
         }
-    }, [currentSignal])
+    }, [currentSignal, selectedSymbol])
 
     // Generate prediction labels based on timeframe
     const predictionLabels = useMemo(() => getPredictionLabels(timeframe, 5), [timeframe])
 
-    // Generate predictions with dynamic labels
-    const predictions = useMemo(() => [
-        { period: predictionLabels[0], direction: 'UP' as const, confidence: 64 },
-        { period: predictionLabels[1], direction: 'UP' as const, confidence: 58 },
-        { period: predictionLabels[2], direction: 'UP' as const, confidence: 55 },
-        { period: predictionLabels[3], direction: 'DOWN' as const, confidence: 52 },
-        { period: predictionLabels[4], direction: 'UP' as const, confidence: 61 },
-    ], [predictionLabels])
+    // DYNAMIC predictions based on the actual signal data for selected stock
+    const predictions = useMemo(() => {
+        // Base confidence from the signal's confluence score (0-1 scale to 50-95 scale)
+        const baseConfidence = currentSignal?.confluence_score
+            ? Math.round(currentSignal.confluence_score * 45 + 50)
+            : 55
+
+        // Determine direction bias from signal type
+        const signalType = currentSignal?.signal_type || 'HOLD'
+        const isBullish = signalType.includes('BUY')
+        const isBearish = signalType.includes('SELL')
+
+        // Calculate technical and sentiment influence
+        const techScore = currentSignal?.technical_score || 0.5
+        const sentScore = currentSignal?.sentiment_score || 0.5
+
+        // Generate 5 predictions with variation based on stock's actual data
+        const generateDirection = (index: number): 'UP' | 'DOWN' => {
+            // Use a seeded random based on symbol to make it consistent per stock
+            const seed = selectedSymbol.split('').reduce((a, b) => a + b.charCodeAt(0), 0)
+            const pseudoRandom = Math.sin(seed * (index + 1)) * 0.5 + 0.5
+
+            if (isBullish) {
+                // 70-85% chance of UP for bullish stocks
+                return pseudoRandom < (0.70 + techScore * 0.15) ? 'UP' : 'DOWN'
+            } else if (isBearish) {
+                // 65-80% chance of DOWN for bearish stocks
+                return pseudoRandom < (0.65 + (1 - techScore) * 0.15) ? 'DOWN' : 'UP'
+            } else {
+                // Mixed for HOLD stocks
+                return pseudoRandom < 0.5 ? 'UP' : 'DOWN'
+            }
+        }
+
+        // Generate confidence with variation based on timeframe and scores
+        const generateConfidence = (index: number): number => {
+            const seed = selectedSymbol.split('').reduce((a, b) => a + b.charCodeAt(0), 0)
+            const variation = Math.sin(seed * (index + 2)) * 10
+
+            // Shorter timeframes = higher confidence, longer = lower
+            const timeframeDecay = [0, -2, -4, -6, -5]
+
+            let conf = baseConfidence + variation + timeframeDecay[index]
+
+            // Apply sentiment boost/penalty
+            if (sentScore > 0.7) conf += 5
+            if (sentScore < 0.3) conf -= 5
+
+            return Math.max(45, Math.min(95, Math.round(conf)))
+        }
+
+        return predictionLabels.map((label, index) => ({
+            period: label,
+            direction: generateDirection(index),
+            confidence: generateConfidence(index),
+        }))
+    }, [predictionLabels, currentSignal, selectedSymbol])
 
     // Calculate predicted prices
     const predictedPrices = useMemo(() =>
@@ -105,19 +167,31 @@ export default function ChartsPage() {
     )
 
     const avgConfidence = predictions.reduce((acc, p) => acc + p.confidence, 0) / predictions.length
-    const recommendation = avgConfidence > 55 ? 'BUY' : avgConfidence < 45 ? 'SELL' : 'HOLD'
+
+    // Use actual signal recommendation if available
+    const recommendation = useMemo(() => {
+        if (currentSignal?.signal_type?.includes('BUY')) return 'BUY'
+        if (currentSignal?.signal_type?.includes('SELL')) return 'SELL'
+        if (avgConfidence > 60) return 'BUY'
+        if (avgConfidence < 45) return 'SELL'
+        return 'HOLD'
+    }, [currentSignal, avgConfidence])
+
     const upCount = predictions.filter(p => p.direction === 'UP').length
     const downCount = predictions.filter(p => p.direction === 'DOWN').length
 
-    // AI Reasoning
+    // AI Reasoning - Dynamic based on actual signal data
     const aiReasoning = useMemo(() => {
+        const techRationale = currentSignal?.technical_rationale || 'Technical analysis complete'
+        const sentRationale = currentSignal?.sentiment_rationale || 'Sentiment analysis pending'
+
         if (recommendation === 'BUY') {
-            return `Strong bullish momentum detected with ${upCount}/5 timeframes showing upward movement. Technical indicators align with positive sentiment. Consider entering at current levels with defined stop-loss.`
+            return `Strong bullish momentum detected for ${selectedSymbol} with ${upCount}/5 timeframes showing upward movement. ${techRationale}. ${sentRationale}. Consider entering at current levels with defined stop-loss.`
         } else if (recommendation === 'SELL') {
-            return `Bearish pressure detected with ${downCount}/5 timeframes showing downward movement. Consider reducing exposure or hedging positions.`
+            return `Bearish pressure detected for ${selectedSymbol} with ${downCount}/5 timeframes showing downward movement. ${techRationale}. Consider reducing exposure or hedging positions.`
         }
-        return `Mixed signals detected. Market showing uncertainty. Consider waiting for clearer trend direction.`
-    }, [recommendation, upCount, downCount])
+        return `Mixed signals detected for ${selectedSymbol}. ${techRationale}. Market showing uncertainty. Consider waiting for clearer trend direction.`
+    }, [recommendation, upCount, downCount, selectedSymbol, currentSignal])
 
     // Generate candlestick data based on timeframe
     const candlestickData = useMemo(() => {
@@ -580,6 +654,15 @@ export default function ChartsPage() {
                     </SectionCard>
                 </Grid>
             </Grid>
+
+            {/* Technical Indicators Panel */}
+            <Box sx={{ mb: 3 }}>
+                <TechnicalIndicatorsPanel
+                    symbol={selectedSymbol}
+                    currentPrice={liveData.price}
+                    timeframe={currentTimeframeConfig.label}
+                />
+            </Box>
         </Box>
     )
 }
