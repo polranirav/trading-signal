@@ -6,6 +6,7 @@ Handles user registration, login, logout, and session management.
 
 from flask import Blueprint, request, session as flask_session, g
 from typing import Dict, Optional
+from datetime import datetime
 
 from src.api.utils import success_response, error_response, require_auth_api
 from src.data.persistence import get_database
@@ -55,7 +56,7 @@ def register():
             
             # Create free subscription
             from src.auth.models import Subscription
-            from datetime import datetime
+            # Create free subscription
             free_sub = Subscription(
                 user_id=user.id,
                 tier='free',
@@ -95,6 +96,8 @@ def register():
 @auth_bp.route('/auth/login', methods=['POST'])
 def login():
     """Authenticate user and create session."""
+    with open('/tmp/login_debug.log', 'a') as f:
+        f.write(f"\\n[{datetime.utcnow()}] Login request received\\n")
     try:
         data = request.get_json()
         
@@ -104,13 +107,22 @@ def login():
         email = data.get('email', '').strip().lower()
         password = data.get('password', '')
         
+        with open('/tmp/login_debug.log', 'a') as f:
+            f.write(f"[{datetime.utcnow()}] Attempting login for {email}\\n")
+        
         if not email or not password:
             return error_response("Email and password required", 400)
         
         # Authenticate
         db = get_database()
         with db.get_session() as db_session:
+            with open('/tmp/login_debug.log', 'a') as f:
+                f.write(f"[{datetime.utcnow()}] Session acquired, calling authenticate_user\\n")
+                
             user = AuthService.authenticate_user(db_session, email, password)
+            
+            with open('/tmp/login_debug.log', 'a') as f:
+                f.write(f"[{datetime.utcnow()}] Authenticated: {bool(user)}\\n")
             
             if not user:
                 return error_response("Invalid email or password", 401)
@@ -119,9 +131,12 @@ def login():
                 return error_response("Account is inactive", 403)
             
             # Update last login
-            from datetime import datetime
+            # Update last login
             user.last_login = datetime.utcnow()
             db_session.commit()
+            
+            with open('/tmp/login_debug.log', 'a') as f:
+                f.write(f"[{datetime.utcnow()}] DB commit success. Setting session.\\n")
             
             # Set session
             flask_session['user_id'] = str(user.id)
@@ -129,9 +144,21 @@ def login():
             
             logger.info(f"User logged in: {email}")
             
+            with open('/tmp/login_debug.log', 'a') as f:
+                f.write(f"[{datetime.utcnow()}] Session set. Getting tier.\\n")
+            
             # Get subscription info
-            from src.subscriptions.service import SubscriptionService
-            tier = SubscriptionService.get_user_tier(db_session, user.id)
+            try:
+                from src.subscriptions.service import SubscriptionService
+                tier = SubscriptionService.get_user_tier(db_session, user.id)
+                with open('/tmp/login_debug.log', 'a') as f:
+                    f.write(f"[{datetime.utcnow()}] Tier: {tier}\\n")
+            except Exception as sub_e:
+                with open('/tmp/login_debug.log', 'a') as f:
+                    f.write(f"[{datetime.utcnow()}] Subscription check failed: {sub_e}\\n")
+                # Fallback to free if this fails? Or re-raise?
+                # Let's log and re-raise to be sure.
+                raise sub_e
             
             return success_response(
                 data={
@@ -151,6 +178,10 @@ def login():
             )
             
     except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        with open('/tmp/login_debug.log', 'a') as f:
+            f.write(f"[{datetime.utcnow()}] CRASH: {e}\\n{tb}\\n")
         logger.error(f"Login error: {e}", exc_info=True)
         return error_response("Login failed", 500)
 
